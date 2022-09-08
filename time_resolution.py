@@ -128,10 +128,13 @@ def resample_by_events(data_df):
 	resampled_df = resampled_df.stack(level=columns)
 	return resampled_df
 
-def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=0):
+def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=0, force:bool=False):
 	Nicanor = bureaucrat
 	
 	Nicanor.check_these_tasks_were_run_successfully(['TCT_1D_scan','parse_waveforms'])
+	
+	if force==False and Nicanor.was_task_run_successfully('jitter_vs_distance_in_TCT_1D_scan'):
+		return
 	
 	with Nicanor.handle_task('jitter_vs_distance_in_TCT_1D_scan') as Nicanors_employee:
 		parsed_from_waveforms_df = load_whole_dataframe(Nicanor.path_to_directory_of_task('parse_waveforms')/'parsed_from_waveforms.sqlite')
@@ -221,6 +224,19 @@ def time_resolution_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, cfd_thr
 			include_plotlyjs = 'cdn',
 		)
 
+def script_core(bureaucrat:RunBureaucrat, force:bool=False):
+	Albert = bureaucrat
+	if Albert.was_task_run_successfully('TCT_1D_scan'):
+		jitter_vs_distance_in_TCT_1D_scan(
+			bureaucrat = Albert, 
+			number_of_bootstrapped_replicas = 33, 
+			force = force
+		)
+		time_resolution_vs_distance_in_TCT_1D_scan(
+			bureaucrat = Albert,
+			cfd_thresholds = (20,20),
+		)
+
 if __name__ == '__main__':
 	import argparse
 
@@ -232,11 +248,17 @@ if __name__ == '__main__':
 		dest = 'directory',
 		type = str,
 	)
-	
+	parser.add_argument(
+		'--force',
+		help = 'If this flag is passed, it will force the calculation even if it was already done beforehand. Old data will be deleted.',
+		required = False,
+		dest = 'force',
+		action = 'store_true'
+	)
 	args = parser.parse_args()
 	
 	Enrique = RunBureaucrat(Path(args.directory))
-	time_resolution_vs_distance_in_TCT_1D_scan(
+	script_core(
 		bureaucrat = Enrique,
-		cfd_thresholds = (20,20),
+		force = args.force,
 	)
