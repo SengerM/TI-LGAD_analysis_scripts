@@ -1,7 +1,7 @@
 from the_bureaucrat.bureaucrats import RunBureaucrat # https://github.com/SengerM/the_bureaucrat
 from pathlib import Path
 from huge_dataframe.SQLiteDataFrame import SQLiteDataFrameDumper, load_whole_dataframe # https://github.com/SengerM/huge_dataframe
-from utils import integrate_distance_given_path, kMAD
+from utils import integrate_distance_given_path, kMAD, generate_distance_vs_n_position
 from grafica.plotly_utils.utils import line # https://github.com/SengerM/grafica
 import numpy
 import pandas
@@ -128,7 +128,7 @@ def resample_by_events(data_df):
 	resampled_df = resampled_df.stack(level=columns)
 	return resampled_df
 
-def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=0, silent:bool=True):
+def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=0):
 	Nicanor = bureaucrat
 	
 	Nicanor.check_these_tasks_were_run_successfully(['TCT_1D_scan','parse_waveforms'])
@@ -180,9 +180,44 @@ def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootst
 			error_y_mode = 'bands',
 			color = 'n_channel',
 			title = f'Jitter vs position<br><sup>Run: {Nicanor.run_name}</sup>',
+			labels = {'Jitter (s) kMAD': 'Jitter (s)'},
 		)
 		fig.write_html(
 			str(Nicanors_employee.path_to_directory_of_my_task/'jitter_vs_distance.html'),
+			include_plotlyjs = 'cdn',
+		)
+
+def time_resolution_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, cfd_thresholds:tuple):
+	Rick = bureaucrat
+	
+	Rick.check_these_tasks_were_run_successfully(['jitter_vs_distance_in_TCT_1D_scan', 'TCT_1D_scan'])
+	
+	with Rick.handle_task('time_resolution_vs_distance_in_TCT_1D_scan') as Ricks_employee:
+		jitter_df = load_whole_dataframe(Rick.path_to_directory_of_task('jitter_vs_distance_in_TCT_1D_scan')/'jitter.sqlite')
+		measured_data_df = load_whole_dataframe(Rick.path_to_directory_of_task('TCT_1D_scan')/'measured_data.sqlite')
+		jitter_df = jitter_df.merge(generate_distance_vs_n_position(measured_data_df[['x (m)', 'y (m)', 'z (m)']]), left_index=True, right_index=True)
+		
+		for col in jitter_df.columns:
+			if 'jitter' in col.lower():
+				jitter_df[col] /= 2**.5
+				jitter_df.rename(columns={col: col.replace('Jitter','Time resolution')}, inplace=True)
+		
+		time_resolution = jitter_df.loc[:,:,cfd_thresholds[0],cfd_thresholds[1]]
+		
+		time_resolution.to_pickle(Ricks_employee.path_to_directory_of_my_task/'time_resolution.pickle')
+		
+		fig = line(
+			data_frame = time_resolution.query('`Time resolution (s) kMAD`<200e-12').reset_index(drop=False).sort_values(['n_position','n_channel']),
+			x = 'Distance (m)',
+			y = 'Time resolution (s) kMAD',
+			error_y = 'Time resolution (s) kMAD error',
+			error_y_mode = 'bands',
+			color = 'n_channel',
+			title = f'Time resolution vs position<br><sup>Run: {Rick.run_name}</sup>',
+			labels = {'Time resolution (s) kMAD': 'Time resolution (s)'},
+		)
+		fig.write_html(
+			str(Ricks_employee.path_to_directory_of_my_task/'time_resolution_vs_distance.html'),
 			include_plotlyjs = 'cdn',
 		)
 
@@ -201,8 +236,7 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	
 	Enrique = RunBureaucrat(Path(args.directory))
-	jitter_vs_distance_in_TCT_1D_scan(
+	time_resolution_vs_distance_in_TCT_1D_scan(
 		bureaucrat = Enrique,
-		silent = False,
-		number_of_bootstrapped_replicas = 11,
+		cfd_thresholds = (20,20),
 	)
