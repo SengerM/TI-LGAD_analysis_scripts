@@ -128,6 +128,26 @@ def load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan(bureaucrat:RunBu
 	measured_data_df = load_whole_dataframe(Joaquin.path_to_directory_of_task('TCT_1D_scan')/'measured_data.sqlite')
 	return measured_data_df.merge(parsed_from_waveforms_df, left_index=True, right_index=True).droplevel('n_waveform',axis=0)
 
+def tag_channels_left_right(bureaucrat:RunBureaucrat):
+	Lars = bureaucrat
+	Lars.check_these_tasks_were_run_successfully(['TCT_1D_scan','parse_waveforms'])
+	
+	with Lars.handle_task('tag_channels_left_right') as Lars_employee:
+		df = load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan(Lars)
+		left_data = df.query(f'n_position<{numpy.mean(df.index.get_level_values("n_position"))}')
+		right_data = df.query(f'n_position>{numpy.mean(df.index.get_level_values("n_position"))}')
+		n_channels = set(df.index.get_level_values('n_channel'))
+		for n_channel in n_channels:
+			if left_data.query(f'n_channel=={n_channel}')['Amplitude (V)'].mean(skipna=True) > left_data.query(f'n_channel!={n_channel}')['Amplitude (V)'].mean(skipna=True):
+				mapping = {'left': n_channel, 'right': list(n_channels-{n_channel})[0]}
+			else:
+				mapping = {'right': n_channel, 'left': list(n_channels-{n_channel})[0]}
+		tags_df = pandas.DataFrame({'n_channel': [mapping[t] for t in sorted(mapping)], 'channel_position': sorted(mapping)})
+		tags_df.set_index('n_channel',inplace=True)
+		tags = tags_df['channel_position'] # Convert into series
+		print(tags)
+		tags.to_pickle(Lars_employee.path_to_directory_of_my_task/'channels_position.pickle')
+
 if __name__=='__main__':
-	summarize_measured_data(RunBureaucrat(Path('/home/alf/cernbox/projects/4D_sensors/TI-LGAD_FBK_RD50_1/measurements_data/220715_second_campaign/20220906_testing_the_setup/TCT_scans/subruns/20220908134101_hate_the_bugged_oscilloscope/TCT_1D_scan_sweeping_bias_voltage/subruns/20220908134101_hate_the_bugged_oscilloscope_220V')))
+	tag_channel_position(RunBureaucrat(Path('/home/alf/cernbox/projects/4D_sensors/TI-LGAD_FBK_RD50_1/measurements_data/220715_second_campaign/20220906_testing_the_setup/TCT_scans/subruns/20220908134101_hate_the_bugged_oscilloscope/TCT_1D_scan_sweeping_bias_voltage/subruns/20220908134101_hate_the_bugged_oscilloscope_220V')))
 	
