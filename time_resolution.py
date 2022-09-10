@@ -195,7 +195,7 @@ def time_resolution_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, cfd_thr
 	with Rick.handle_task('time_resolution_vs_distance_in_TCT_1D_scan') as Ricks_employee:
 		jitter_df = load_whole_dataframe(Rick.path_to_directory_of_task('jitter_vs_distance_in_TCT_1D_scan')/'jitter.sqlite')
 		data_df = load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan(Rick)
-		jitter_df = jitter_df.merge(generate_distance_vs_n_position(data_df[['x (m)', 'y (m)', 'z (m)']]), left_index=True, right_index=True)
+		jitter_df = jitter_df.join(generate_distance_vs_n_position(data_df[['x (m)', 'y (m)', 'z (m)']]), on='n_position')
 		
 		for col in jitter_df.columns:
 			if 'jitter' in col.lower():

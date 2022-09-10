@@ -26,51 +26,56 @@ def integrate_distance_given_path(points:list):
 		distance.append(distance[-1] + calculate_distance(points[i-1],p))
 	return distance
 
-def generate_distance_vs_n_position(df):
-	"""Given a `df` that posses the columns x,y,z and n_positio
+def generate_distance_vs_n_position(df)->pandas.Series:
+	"""Given a `df` that posses the columns x,y,z and n_position, integrates
+	the distance and returns a series with this information.
 	
 	Example input:
 	```
-														  x (m)     y (m)     z (m)
-	n_waveform n_position n_trigger n_channel n_pulse                              
-	0          0          0         1         1       -0.002926  0.001314  0.071339
-	1          0          0         1         2       -0.002926  0.001314  0.071339
-	2          0          0         4         1       -0.002926  0.001314  0.071339
-	3          0          0         4         2       -0.002926  0.001314  0.071339
-	4          0          1         1         1       -0.002926  0.001314  0.071339
-	...                                                     ...       ...       ...
-	148291     333        109       4         2       -0.002926  0.001647  0.071339
-	148292     333        110       1         1       -0.002926  0.001647  0.071339
-	148293     333        110       1         2       -0.002926  0.001647  0.071339
-	148294     333        110       4         1       -0.002926  0.001647  0.071339
-	148295     333        110       4         2       -0.002926  0.001647  0.071339
+											   x (m)     y (m)     z (m)  ...
+	n_position n_trigger n_channel n_pulse                                ...
+	0          0         1         1       -0.002926  0.001314  0.071339  ...
+								   2       -0.002926  0.001314  0.071339  ...
+						 4         1       -0.002926  0.001314  0.071339  ...
+								   2       -0.002926  0.001314  0.071339  ...
+			   1         1         1       -0.002926  0.001314  0.071339  ...
+	...                                          ...       ...       ...  ...
+	333        109       4         2       -0.002926  0.001647  0.071339  ...
+			   110       1         1       -0.002926  0.001647  0.071339  ...
+								   2       -0.002926  0.001647  0.071339  ...
+						 4         1       -0.002926  0.001647  0.071339  ...
+								   2       -0.002926  0.001647  0.071339  ...
+
+	[148296 rows x 35 columns]
 	```
 	Example output:
 	```
-				Distance (m)
-	n_position              
-	0           0.000000e+00
-	1           9.960938e-07
-	2           2.001953e-06
-	3           2.998047e-06
-	4           4.003906e-06
-	...                  ...
-	329         3.289941e-04
-	330         3.300000e-04
-	331         3.309961e-04
-	332         3.320020e-04
-	333         3.329980e-04
-
+	n_position
+	0      0.000000e+00
+	1      9.960938e-07
+	2      2.001953e-06
+	3      2.998047e-06
+	4      4.003906e-06
+			   ...     
+	329    3.289941e-04
+	330    3.300000e-04
+	331    3.309961e-04
+	332    3.320020e-04
+	333    3.329980e-04
+	Name: Distance (m), Length: 334, dtype: float64
 	```
 	"""
+	COORDINATES_COLUMNS = ['x (m)', 'y (m)', 'z (m)']
 	if 'n_position' not in df.index.names:
 		raise ValueError(f'`n_position` must be one index level of `df`.')
-	with warnings.catch_warnings():
-		warnings.filterwarnings("ignore") # This is because of the annoying warning "A value is trying to be set on a copy of a slice from a DataFrame." of Pandas.
-		df['Distance (m)'] = integrate_distance_given_path(list(df[['x (m)', 'y (m)', 'z (m)']].to_numpy()))
-	distance = df.droplevel(list(set(df.index.names)-{'n_position'}),axis=0)['Distance (m)']
-	distance = distance[~distance.index.duplicated(keep='first')]
-	distance = distance.to_frame()
+	if any([col not in df.columns for col in COORDINATES_COLUMNS]):
+		raise ValueError(f'Column(s) {set(COORDINATES_COLUMNS)-set(df.columns)} not present in `df`.')
+	df = df.reset_index(drop=False)
+	df = df.set_index('n_position')
+	df = df[~df.index.duplicated(keep='first')]
+	df2 = pandas.DataFrame(index=df.index)
+	df2['Distance (m)'] = integrate_distance_given_path(list(df[COORDINATES_COLUMNS].to_numpy()))
+	distance = df2.droplevel(list(set(df2.index.names)-{'n_position'}),axis=0)['Distance (m)']
 	return distance
 
 def kMAD(x,nan_policy='omit'):
