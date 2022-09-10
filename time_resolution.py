@@ -7,6 +7,7 @@ import numpy
 import pandas
 from scipy.optimize import curve_fit
 import warnings
+from multiprocessing import Pool
 
 def gaussian(x, mu, sigma, amplitude=1):
 	return amplitude/sigma/(2*numpy.pi)**.5*numpy.exp(-((x-mu)/sigma)**2/2)
@@ -220,18 +221,47 @@ def time_resolution_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, cfd_thr
 			include_plotlyjs = 'cdn',
 		)
 
-def script_core(bureaucrat:RunBureaucrat, force:bool=False):
+def jitter_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=0, force:bool=False, number_of_processes:int=1, silent:bool=True):
+	"""Executes the task `jitter_vs_distance_in_TCT_1D_scan` for all subruns
+	of `TCT_1D_scan_sweeping_bias_voltage`. If the task `TCT_1D_scan_sweeping_bias_voltage`
+	is not found in the run being handled by `bureaucrat` the function
+	simply does nothing.
+	"""
+	Palpatine = bureaucrat
+	subruns = Palpatine.list_subruns_of_task('TCT_1D_scan_sweeping_bias_voltage')
+	
+	if len(subruns) == 0:
+		return
+	
+	with Pool(number_of_processes) as p:
+		p.starmap(
+			jitter_vs_distance_in_TCT_1D_scan,
+			[(bur,boots,frc) for bur,boots,frc in zip(subruns, [number_of_bootstrapped_replicas]*len(subruns), [force]*len(subruns))]
+		)
+
+def script_core(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=33 force:bool=False):
 	Albert = bureaucrat
+	
+	# The following function will try to do it's job, if it is not possible because the required task is not there, it just returns without doing anything.
+	jitter_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(
+		bureaucrat = Albert, 
+		number_of_bootstrapped_replicas = number_of_bootstrapped_replicas,
+		force = force,
+		number_of_processes = ,
+		silent = True,
+	)
+	
 	if Albert.was_task_run_successfully('TCT_1D_scan'):
 		jitter_vs_distance_in_TCT_1D_scan(
 			bureaucrat = Albert, 
-			number_of_bootstrapped_replicas = 33, 
+			number_of_bootstrapped_replicas = number_of_bootstrapped_replicas, 
 			force = force
 		)
 		time_resolution_vs_distance_in_TCT_1D_scan(
 			bureaucrat = Albert,
 			cfd_thresholds = (20,20),
 		)
+	
 
 if __name__ == '__main__':
 	import argparse
@@ -254,7 +284,13 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	
 	Enrique = RunBureaucrat(Path(args.directory))
-	script_core(
+	# ~ script_core(
+		# ~ bureaucrat = Enrique,
+		# ~ force = args.force,
+	# ~ )
+	jitter_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(
 		bureaucrat = Enrique,
-		force = args.force,
+		number_of_bootstrapped_replicas = 4,
+		force = True, 
+		number_of_processes = 7,
 	)
