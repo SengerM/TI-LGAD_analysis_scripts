@@ -1,7 +1,7 @@
 from the_bureaucrat.bureaucrats import RunBureaucrat # https://github.com/SengerM/the_bureaucrat
 from pathlib import Path
 from huge_dataframe.SQLiteDataFrame import SQLiteDataFrameDumper, load_whole_dataframe # https://github.com/SengerM/huge_dataframe
-from utils import integrate_distance_given_path, kMAD, generate_distance_vs_n_position
+from utils import integrate_distance_given_path, kMAD, generate_distance_vs_n_position, load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan
 from grafica.plotly_utils.utils import line # https://github.com/SengerM/grafica
 import numpy
 import pandas
@@ -137,13 +137,9 @@ def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootst
 		return
 	
 	with Nicanor.handle_task('jitter_vs_distance_in_TCT_1D_scan') as Nicanors_employee:
-		parsed_from_waveforms_df = load_whole_dataframe(Nicanor.path_to_directory_of_task('parse_waveforms')/'parsed_from_waveforms.sqlite')
-		measured_data_df = load_whole_dataframe(Nicanor.path_to_directory_of_task('TCT_1D_scan')/'measured_data.sqlite')
-		
-		data_df = measured_data_df.merge(parsed_from_waveforms_df, left_index=True, right_index=True)
+		data_df = load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan(Nicanor)
 		data_df['Distance (m)'] = integrate_distance_given_path(list(data_df[['x (m)', 'y (m)', 'z (m)']].to_numpy()))
 		
-		data_df = data_df.droplevel('n_waveform',axis=0)
 		data_df.drop(columns=[col for col in data_df.columns if col not in {'Distance (m)', 't_10 (s)', 't_20 (s)', 't_30 (s)', 't_40 (s)', 't_50 (s)', 't_60 (s)', 't_70 (s)', 't_80 (s)', 't_90 (s)'}], inplace=True)
 		
 		jitters_list = []
@@ -197,8 +193,8 @@ def time_resolution_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, cfd_thr
 	
 	with Rick.handle_task('time_resolution_vs_distance_in_TCT_1D_scan') as Ricks_employee:
 		jitter_df = load_whole_dataframe(Rick.path_to_directory_of_task('jitter_vs_distance_in_TCT_1D_scan')/'jitter.sqlite')
-		measured_data_df = load_whole_dataframe(Rick.path_to_directory_of_task('TCT_1D_scan')/'measured_data.sqlite')
-		jitter_df = jitter_df.merge(generate_distance_vs_n_position(measured_data_df[['x (m)', 'y (m)', 'z (m)']]), left_index=True, right_index=True)
+		data_df = load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan(Nicanor)
+		jitter_df = jitter_df.merge(generate_distance_vs_n_position(data_df[['x (m)', 'y (m)', 'z (m)']]), left_index=True, right_index=True)
 		
 		for col in jitter_df.columns:
 			if 'jitter' in col.lower():
