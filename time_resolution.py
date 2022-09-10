@@ -261,26 +261,18 @@ def script_core(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=33
 	Albert = bureaucrat
 	
 	# The following function will try to do it's job, if it is not possible because the required task is not there, it just returns without doing anything.
-	try:
-		jitter_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(
-			bureaucrat = Albert, 
-			number_of_bootstrapped_replicas = number_of_bootstrapped_replicas,
-			force = force,
-			number_of_processes = max(multiprocessing.cpu_count()-1,1),
-			silent = True,
-		)
-	except RuntimeError as e:
-		if "Not all tasks ['TCT_1D_scan', 'parse_waveforms'] were successfully run beforehand on run" in str(e):
-			warnings.warn(f'Could not calculate jitter vs distance in all subruns, reason: {e}')
-	try:
-		time_resolution_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(
-			bureaucrat = Albert,
-			cfd_thresholds = cfd_thresholds,
-			number_of_processes = max(multiprocessing.cpu_count()-1,1),
-		)
-	except RuntimeError as e:
-		if "Not all tasks ['jitter_vs_distance_in_TCT_1D_scan', 'TCT_1D_scan'] were successfully run beforehand on run" in str(e):
-			warnings.warn(f'Could not calculate jitter vs distance in all subruns, reason: {e}')
+	jitter_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(
+		bureaucrat = Albert, 
+		number_of_bootstrapped_replicas = number_of_bootstrapped_replicas,
+		force = force,
+		number_of_processes = max(multiprocessing.cpu_count()-1,1),
+		silent = True,
+	)
+	time_resolution_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(
+		bureaucrat = Albert,
+		cfd_thresholds = cfd_thresholds,
+		number_of_processes = max(multiprocessing.cpu_count()-1,1),
+	)
 	
 	if Albert.was_task_run_successfully('TCT_1D_scan'):
 		jitter_vs_distance_in_TCT_1D_scan(
