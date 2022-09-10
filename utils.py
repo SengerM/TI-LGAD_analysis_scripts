@@ -6,6 +6,7 @@ import pandas
 from huge_dataframe.SQLiteDataFrame import load_whole_dataframe # https://github.com/SengerM/huge_dataframe
 from pathlib import Path
 import numpy
+import warnings
 
 def create_a_timestamp():
 	time.sleep(1) # This is to ensure that no two timestamps are the same.
@@ -64,7 +65,9 @@ def generate_distance_vs_n_position(df):
 	"""
 	if 'n_position' not in df.index.names:
 		raise ValueError(f'`n_position` must be one index level of `df`.')
-	df['Distance (m)'] = integrate_distance_given_path(list(df[['x (m)', 'y (m)', 'z (m)']].to_numpy()))
+	with warnings.catch_warnings():
+		warnings.filterwarnings("ignore") # This is because of the annoying warning "A value is trying to be set on a copy of a slice from a DataFrame." of Pandas.
+		df['Distance (m)'] = integrate_distance_given_path(list(df[['x (m)', 'y (m)', 'z (m)']].to_numpy()))
 	distance = df.droplevel(list(set(df.index.names)-{'n_position'}),axis=0)['Distance (m)']
 	distance = distance[~distance.index.duplicated(keep='first')]
 	distance = distance.to_frame()
