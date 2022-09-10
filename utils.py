@@ -123,20 +123,6 @@ def load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan(bureaucrat:RunBu
 	measured_data_df = load_whole_dataframe(Joaquin.path_to_directory_of_task('TCT_1D_scan')/'measured_data.sqlite')
 	return measured_data_df.merge(parsed_from_waveforms_df, left_index=True, right_index=True).droplevel('n_waveform',axis=0)
 
-def summarize_measured_data(bureaucrat:RunBureaucrat):
-	"""Produces a lightweight summary of the "measured data" in the `TCT_1D_scan` task
-	that does not belong to the waveforms, such as the temperature, bias voltage,
-	bias current, etc.
-	"""
-	Paul = bureaucrat
-	Paul.check_these_tasks_were_run_successfully('TCT_1D_scan')
-	with Paul.handle_task('summarize_measured_data') as Pauls_employee:
-		measured_data_df = load_whole_dataframe(Pauls_employee.path_to_directory_of_task('TCT_1D_scan')/'measured_data.sqlite')
-		
-		summary_df = measured_data_df.agg([numpy.nanmean, numpy.nanstd, kMAD, numpy.nanmedian, numpy.nanmax, numpy.nanmin])
-		
-		summary_df.to_pickle(Pauls_employee.path_to_directory_of_my_task/'summary.pickle')
-
 if __name__=='__main__':
 	summarize_measured_data(RunBureaucrat(Path('/home/alf/cernbox/projects/4D_sensors/TI-LGAD_FBK_RD50_1/measurements_data/220715_second_campaign/20220906_testing_the_setup/TCT_scans/subruns/20220908134101_hate_the_bugged_oscilloscope/TCT_1D_scan_sweeping_bias_voltage/subruns/20220908134101_hate_the_bugged_oscilloscope_220V')))
 	
