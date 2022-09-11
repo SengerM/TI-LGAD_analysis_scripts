@@ -197,7 +197,6 @@ def distance_calibration_TCT_1D_scan(bureaucrat:RunBureaucrat, window_size_meter
 		averaged_in_position_df = averaged_in_position_df.join(channel_positions, on='n_channel')
 		
 		averaged_in_position_df = averaged_in_position_df.join(calibrate_distance(distance, s), on='n_position')
-		print(averaged_in_position_df)
 		
 		fig = graficas_px_utils.line(
 			data_frame = averaged_in_position_df.reset_index(drop=False).sort_values(['channel_position','n_position']),
@@ -272,8 +271,6 @@ def distance_calibration_TCT_1D_scan(bureaucrat:RunBureaucrat, window_size_meter
 			include_plotlyjs = 'cdn',
 		)
 		
-		raise NotImplementedError()
-
 if __name__=='__main__':
 	import argparse
 

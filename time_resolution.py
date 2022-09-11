@@ -248,6 +248,8 @@ def time_resolution_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:
 		)
 
 def pixel_time_resolution(bureaucrat:RunBureaucrat, approximate_window_size_meters:float, approximate_laser_size_meters:float, force:bool=False):
+	"""Calculates a time resolution as a single number representative of
+	DUT assuming the time resolution is uniform along the active area."""
 	bureaucrat.check_these_tasks_were_run_successfully(['time_resolution_vs_distance_in_TCT_1D_scan','tag_channels_left_right'])
 	
 	if force==False and bureaucrat.was_task_run_successfully('pixel_time_resolution'):
@@ -312,9 +314,6 @@ def pixel_time_resolution(bureaucrat:RunBureaucrat, approximate_window_size_mete
 			str(employee.path_to_directory_of_my_task/'time_resolution.html'),
 			include_plotlyjs = 'cdn',
 		)
-		
-		
-		raise NotImplementedError()
 
 def script_core(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=33, cfd_thresholds:tuple=(20,20), force:bool=False):
 	Albert = bureaucrat
@@ -342,6 +341,12 @@ def script_core(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=33
 		time_resolution_vs_distance_in_TCT_1D_scan(
 			bureaucrat = Albert,
 			cfd_thresholds = cfd_thresholds,
+		)
+		pixel_time_resolution(
+			bureaucrat = Albert, 
+			approximate_window_size_meters = 250e-6,
+			approximate_laser_size_meters = 11e-6,
+			force = force,
 		)
 
 if __name__ == '__main__':
