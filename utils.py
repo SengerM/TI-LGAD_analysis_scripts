@@ -128,10 +128,13 @@ def load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan(bureaucrat:RunBu
 	measured_data_df = load_whole_dataframe(Joaquin.path_to_directory_of_task('TCT_1D_scan')/'measured_data.sqlite')
 	return measured_data_df.merge(parsed_from_waveforms_df, left_index=True, right_index=True).droplevel('n_waveform',axis=0)
 
-def tag_channels_left_right(bureaucrat:RunBureaucrat):
+def tag_channels_left_right(bureaucrat:RunBureaucrat, force:bool=False):
 	"""Tags each of the two channel numbers as `"left"` or `"right"`."""
 	Lars = bureaucrat
 	Lars.check_these_tasks_were_run_successfully(['TCT_1D_scan','parse_waveforms'])
+	
+	if force==False and Lars.was_task_run_successfully('tag_channels_left_right'):
+		return
 	
 	with Lars.handle_task('tag_channels_left_right') as Lars_employee:
 		df = load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan(Lars)
