@@ -129,6 +129,7 @@ def load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan(bureaucrat:RunBu
 	return measured_data_df.merge(parsed_from_waveforms_df, left_index=True, right_index=True).droplevel('n_waveform',axis=0)
 
 def tag_channels_left_right(bureaucrat:RunBureaucrat):
+	"""Tags each of the two channel numbers as `"left"` or `"right"`."""
 	Lars = bureaucrat
 	Lars.check_these_tasks_were_run_successfully(['TCT_1D_scan','parse_waveforms'])
 	
@@ -145,9 +146,28 @@ def tag_channels_left_right(bureaucrat:RunBureaucrat):
 		tags_df = pandas.DataFrame({'n_channel': [mapping[t] for t in sorted(mapping)], 'channel_position': sorted(mapping)})
 		tags_df.set_index('n_channel',inplace=True)
 		tags = tags_df['channel_position'] # Convert into series
-		print(tags)
 		tags.to_pickle(Lars_employee.path_to_directory_of_my_task/'channels_position.pickle')
 
 if __name__=='__main__':
-	tag_channel_position(RunBureaucrat(Path('/home/alf/cernbox/projects/4D_sensors/TI-LGAD_FBK_RD50_1/measurements_data/220715_second_campaign/20220906_testing_the_setup/TCT_scans/subruns/20220908134101_hate_the_bugged_oscilloscope/TCT_1D_scan_sweeping_bias_voltage/subruns/20220908134101_hate_the_bugged_oscilloscope_220V')))
+	import argparse
+
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--dir',
+		metavar = 'path', 
+		help = 'Path to the base measurement directory.',
+		required = True,
+		dest = 'directory',
+		type = str,
+	)
+	parser.add_argument(
+		'--force',
+		help = 'If this flag is passed, it will force the calculation even if it was already done beforehand. Old data will be deleted.',
+		required = False,
+		dest = 'force',
+		action = 'store_true'
+	)
+	args = parser.parse_args()
+	
+	Enrique = RunBureaucrat(Path(args.directory))
+	tag_channels_left_right(Enrique)
 	
