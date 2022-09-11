@@ -8,6 +8,8 @@ import pandas
 from scipy.optimize import curve_fit
 import warnings
 import multiprocessing
+import utils
+import plotly.express as px
 
 def gaussian(x, mu, sigma, amplitude=1):
 	return amplitude/sigma/(2*numpy.pi)**.5*numpy.exp(-((x-mu)/sigma)**2/2)
@@ -245,6 +247,75 @@ def time_resolution_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:
 			[(bur,cfd_t) for bur,cfd_t in zip(subruns, [cfd_thresholds]*len(subruns))]
 		)
 
+def pixel_time_resolution(bureaucrat:RunBureaucrat, approximate_window_size_meters:float, approximate_laser_size_meters:float, force:bool=False):
+	bureaucrat.check_these_tasks_were_run_successfully(['time_resolution_vs_distance_in_TCT_1D_scan','tag_channels_left_right'])
+	
+	if force==False and bureaucrat.was_task_run_successfully('pixel_time_resolution'):
+		return
+	
+	with bureaucrat.handle_task('pixel_time_resolution') as employee:
+		time_resolution_data = pandas.read_pickle(employee.path_to_directory_of_task('time_resolution_vs_distance_in_TCT_1D_scan')/'time_resolution.pickle')
+		
+		channel_positions = pandas.read_pickle(employee.path_to_directory_of_task('tag_channels_left_right')/'channels_position.pickle')
+		
+		cfd_thresholds_used = {k: list(set(time_resolution_data.index.get_level_values(k)))[0] for k in {'k1_percent','k2_percent'}}
+		time_resolution_data = time_resolution_data.droplevel('k1_percent')
+		time_resolution_data = time_resolution_data.droplevel('k2_percent')
+		
+		distance = time_resolution_data['Distance (m)']
+		distance = distance[~distance.index.duplicated(keep='first')]
+		
+		time_resolution_data = time_resolution_data.join(channel_positions, on='n_channel')
+		
+		distance_left_window_ends = distance.mean()-approximate_laser_size_meters
+		distance_left_window_begins = distance.mean()-approximate_window_size_meters/2+approximate_laser_size_meters
+		distance_right_window_begins = distance.mean()+approximate_laser_size_meters
+		distance_right_window_ends = distance.mean()+approximate_window_size_meters/2-approximate_laser_size_meters
+		
+		_ = time_resolution_data
+		places_with_data_of_interest =  (_['channel_position']=='left')&(_['Distance (m)']>distance_left_window_begins)&(_['Distance (m)']<distance_left_window_ends)
+		places_with_data_of_interest |= (_['channel_position']=='right')&(_['Distance (m)']>distance_right_window_begins)&(_['Distance (m)']<distance_right_window_ends)
+		time_resolution_final_result = time_resolution_data.loc[places_with_data_of_interest]
+		time_resolution_final_result = time_resolution_final_result.agg([numpy.mean, numpy.std])
+		
+		time_resolution_final_result = pandas.Series(
+			{
+				'Time resolution (s)': time_resolution_final_result.loc['mean','Time resolution (s) kMAD'],
+				'Time resolution (s) error': time_resolution_final_result.loc['std','Time resolution (s) kMAD'],
+			}
+		)
+		time_resolution_final_result.to_pickle(employee.path_to_directory_of_my_task/'time_resolution.pickle')
+		
+		fig = line(
+			data_frame = time_resolution_data.query('`Time resolution (s) kMAD`<200e-12').query('`Time resolution (s) kMAD error`<100e-12').reset_index(drop=False).sort_values(['n_position','n_channel']),
+			x = 'Distance (m)',
+			y = 'Time resolution (s) kMAD',
+			error_y = 'Time resolution (s) kMAD error',
+			error_y_mode = 'bands',
+			color = 'channel_position',
+			title = f'TCT time resolution<br><sup>Run: {bureaucrat.run_name}</sup>',
+			labels = {'Time resolution (s) kMAD': 'Time resolution (s)'},
+		)
+		fig.add_hrect(
+			y0 = time_resolution_final_result['Time resolution (s)']-time_resolution_final_result['Time resolution (s) error'],
+			y1 = time_resolution_final_result['Time resolution (s)']+time_resolution_final_result['Time resolution (s) error'],
+			opacity = 0.2,
+			line_width = 0, 
+			fillcolor = "black",
+		)
+		fig.add_hline(
+			y = time_resolution_final_result['Time resolution (s)'],
+			annotation_text = f"Time resolution = {time_resolution_final_result['Time resolution (s)']*1e12:.2f}±{time_resolution_final_result['Time resolution (s) error']*1e12:.2f} ps",
+		)
+		fig.update_yaxes(range=[0, 100e-12])
+		fig.write_html(
+			str(employee.path_to_directory_of_my_task/'time_resolution.html'),
+			include_plotlyjs = 'cdn',
+		)
+		
+		
+		raise NotImplementedError()
+
 def script_core(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=33, cfd_thresholds:tuple=(20,20), force:bool=False):
 	Albert = bureaucrat
 	
@@ -294,7 +365,9 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	
 	Enrique = RunBureaucrat(Path(args.directory))
-	script_core(
+	pixel_time_resolution(
 		bureaucrat = Enrique,
 		force = args.force,
+		approximate_window_size_meters = 250e-6,
+		approximate_laser_size_meters = 11e-6,
 	)
