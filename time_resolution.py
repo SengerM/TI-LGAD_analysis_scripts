@@ -1,7 +1,7 @@
 from the_bureaucrat.bureaucrats import RunBureaucrat # https://github.com/SengerM/the_bureaucrat
 from pathlib import Path
 from huge_dataframe.SQLiteDataFrame import SQLiteDataFrameDumper, load_whole_dataframe # https://github.com/SengerM/huge_dataframe
-from utils import integrate_distance_given_path, kMAD, generate_distance_vs_n_position, load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan
+from utils import integrate_distance_given_path, kMAD, generate_distance_vs_n_position, load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan, resample_by_events
 from grafica.plotly_utils.utils import line # https://github.com/SengerM/grafica
 import numpy
 import pandas
@@ -116,18 +116,6 @@ def sigma_from_gaussian_fit(x, nan_policy='drop')->float:
 		warnings.filterwarnings("ignore", message="divide by zero encountered in divide")
 		_, sigma, _ = fit_gaussian_to_samples(samples=x, bins='auto', nan_policy=nan_policy)
 	return sigma
-
-def resample_by_events(data_df):
-	N_EVENT_COLUMN_IDENTIFIERS = ['n_position','n_trigger']
-	columns = [_ for _ in data_df.index.names if _ not in N_EVENT_COLUMN_IDENTIFIERS]
-	resampled_df = data_df.reset_index(drop=False).pivot(
-		index = N_EVENT_COLUMN_IDENTIFIERS,
-		columns = columns,
-		values = set(data_df.columns),
-	)
-	resampled_df = resampled_df.groupby('n_position').sample(frac=1, replace=True)
-	resampled_df = resampled_df.stack(level=columns)
-	return resampled_df
 
 def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=0, force:bool=False):
 	Nicanor = bureaucrat

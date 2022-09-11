@@ -151,6 +151,21 @@ def tag_channels_left_right(bureaucrat:RunBureaucrat, force:bool=False):
 		tags = tags_df['channel_position'] # Convert into series
 		tags.to_pickle(Lars_employee.path_to_directory_of_my_task/'channels_position.pickle')
 
+def resample_by_events(data_df):
+	N_EVENT_COLUMN_IDENTIFIERS = ['n_position','n_trigger']
+	columns = [_ for _ in data_df.index.names if _ not in N_EVENT_COLUMN_IDENTIFIERS]
+	initial_dtypes = data_df.dtypes
+	resampled_df = data_df.reset_index(drop=False).pivot(
+		index = N_EVENT_COLUMN_IDENTIFIERS,
+		columns = columns,
+		values = set(data_df.columns),
+	)
+	resampled_df = resampled_df.groupby('n_position').sample(frac=1, replace=True)
+	resampled_df = resampled_df.stack(level=columns)
+	if any([initial_dtypes[_]!=resampled_df.dtypes[_] for _ in data_df.columns]):
+		warnings.warn(f'There was an automatic cast by Pandas while running `pivot` to resample, please check this because it may not broke the code but severely affect performance after resampling.')
+	return resampled_df
+
 if __name__=='__main__':
 	import argparse
 
