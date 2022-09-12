@@ -147,7 +147,9 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 		IPD_data = pandas.concat(IPD_data)
 		IPD_data = IPD_data.agg([numpy.nanmean, numpy.nanstd])
 		
-		IPD_data.to_pickle(employee.path_to_directory_of_my_task/'IPD_data.pickle')
+		inter_pixel_distance_final_result = IPD_data['Inter-pixel distance (m)']
+		inter_pixel_distance_final_result = inter_pixel_distance_final_result.rename(index={'nanmean':'value','nanstd':'error'})
+		inter_pixel_distance_final_result.to_pickle(employee.path_to_directory_of_my_task/'inter_pixel_distance.pickle')
 		
 		with open(employee.path_to_directory_of_my_task/'threshold_percent.txt', 'w') as ofile:
 			print(f'To calculate this inter-pixel distance a `threshold_percent` of {threshold_percent} was used.', file=ofile)
