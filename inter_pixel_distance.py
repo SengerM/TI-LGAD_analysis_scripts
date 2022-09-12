@@ -9,6 +9,7 @@ import grafica.plotly_utils.utils as graficas_px_utils
 import plotly.graph_objects as go
 import plotly.express as px
 from huge_dataframe.SQLiteDataFrame import SQLiteDataFrameDumper, load_whole_dataframe # https://github.com/SengerM/huge_dataframe
+import summarize_measured_data
 
 graficas_px_utils.set_my_template_as_default()
 
@@ -216,7 +217,48 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 			employee.path_to_directory_of_my_task/'IPD measurement.html',
 			include_plotlyjs = 'cdn',
 		)
+
+def inter_pixel_distance_vs_bias_voltage(bureaucrat:RunBureaucrat):
+	bureaucrat.check_these_tasks_were_run_successfully('TCT_1D_scan_sweeping_bias_voltage')
+	concat_this = []
+	for subrun_bureaucrat in bureaucrat.list_subruns_of_task('TCT_1D_scan_sweeping_bias_voltage'):
+		subrun_bureaucrat.check_these_tasks_were_run_successfully(['inter_pixel_distance'])
+		s = pandas.read_pickle(subrun_bureaucrat.path_to_directory_of_task('inter_pixel_distance')/'inter_pixel_distance.pickle')
+		s = s.to_frame().transpose()
+		s.columns = [f'{s.index.get_level_values(0)[0]} {col}' for col in s.columns]
+		s.reset_index(inplace=True, drop=True)
+		s['run_name'] = subrun_bureaucrat.run_name
+		s.set_index('run_name', inplace=True)
+		concat_this.append(s)
+	df = pandas.concat(concat_this)
+	
+	measured_data = summarize_measured_data.read_summarized_data_in_TCT_1D_scan_sweeping_bias_voltage(bureaucrat)
+	measured_data.drop(columns=[c for c in measured_data.columns if 'Bias voltage (V)'!=c[0]], inplace=True)
+	df['Bias voltage (V)'] = measured_data[('Bias voltage (V)','nanmean')]
+	df['Bias voltage (V) error'] = measured_data[('Bias voltage (V)','nanstd')]
+	with bureaucrat.handle_task('inter_pixel_distance_vs_bias_voltage') as employee:
+		df.to_pickle(employee.path_to_directory_of_my_task/'time_resolution_vs_bias_voltage.pickle')
+	
+		fig = px.line(
+			df.sort_values('Bias voltage (V)'),
+			x = 'Bias voltage (V)',
+			error_x = 'Bias voltage (V) error',
+			y = 'Inter-pixel distance (m) value',
+			error_y = 'Inter-pixel distance (m) error',
+			markers = True,
+			title = f'Time resolution vs bias voltage in TCT<br><sup>Run: {bureaucrat.run_name}</sup>',
+			labels = {
+				'Inter-pixel distance (m) value': 'Inter-pixel distance (m)'
+			}
+		)
+		fig.update_xaxes(autorange="reversed")
+		fig.write_html(
+			employee.path_to_directory_of_my_task/'inter_pixel_distance_vs_bias_voltage.html',
+			include_plotlyjs = 'cdn',
+		)
 		
+		raise NotImplementedError()
+	
 if __name__ == '__main__':
 	import argparse
 
@@ -238,8 +280,5 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	
 	Enrique = RunBureaucrat(Path(args.directory))
-	inter_pixel_distance(
-		bureaucrat = Enrique,
-		number_of_bootstrapped_replicas = 11,
-		force = args.force,
-	)
+	# ~ inter_pixel_distance(bureaucrat=Enrique, number_of_bootstrapped_replicas=11, threshold_percent=50, force=True)
+	inter_pixel_distance_vs_bias_voltage(bureaucrat=Enrique)

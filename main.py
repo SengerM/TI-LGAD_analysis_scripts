@@ -83,6 +83,7 @@ def run_tasks_on_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:RunBureaucrat, num
 			[(bur,frc) for bur,frc in zip(subruns, [force]*len(subruns))]
 		)
 	time_resolution.time_resolution_vs_bias_voltage(bureaucrat)
+	inter_pixel_distance.inter_pixel_distance_vs_bias_voltage(bureaucrat)
 
 def main(bureaucrat:RunBureaucrat, force:bool=False):
 	if bureaucrat.was_task_run_successfully('TCT_1D_scan'):
