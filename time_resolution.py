@@ -2,14 +2,16 @@ from the_bureaucrat.bureaucrats import RunBureaucrat # https://github.com/Senger
 from pathlib import Path
 from huge_dataframe.SQLiteDataFrame import SQLiteDataFrameDumper, load_whole_dataframe # https://github.com/SengerM/huge_dataframe
 from utils import integrate_distance_given_path, kMAD, generate_distance_vs_n_position, load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan, resample_by_events
-from grafica.plotly_utils.utils import line # https://github.com/SengerM/grafica
+from grafica.plotly_utils.utils import line, set_my_template_as_default # https://github.com/SengerM/grafica
 import numpy
 import pandas
 from scipy.optimize import curve_fit
 import warnings
-import multiprocessing
 import utils
 import plotly.express as px
+import summarize_measured_data
+
+set_my_template_as_default()
 
 def gaussian(x, mu, sigma, amplitude=1):
 	return amplitude/sigma/(2*numpy.pi)**.5*numpy.exp(-((x-mu)/sigma)**2/2)
@@ -211,42 +213,6 @@ def time_resolution_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, cfd_thr
 			include_plotlyjs = 'cdn',
 		)
 
-def jitter_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=0, force:bool=False, number_of_processes:int=1, silent:bool=True):
-	"""Executes the task `jitter_vs_distance_in_TCT_1D_scan` for all subruns
-	of `TCT_1D_scan_sweeping_bias_voltage`. If the task `TCT_1D_scan_sweeping_bias_voltage`
-	is not found in the run being handled by `bureaucrat` the function
-	simply does nothing.
-	"""
-	Palpatine = bureaucrat
-	subruns = Palpatine.list_subruns_of_task('TCT_1D_scan_sweeping_bias_voltage')
-	
-	if len(subruns) == 0:
-		return
-	
-	with multiprocessing.Pool(number_of_processes) as p:
-		p.starmap(
-			jitter_vs_distance_in_TCT_1D_scan,
-			[(bur,boots,frc) for bur,boots,frc in zip(subruns, [number_of_bootstrapped_replicas]*len(subruns), [force]*len(subruns))]
-		)
-
-def time_resolution_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:RunBureaucrat, cfd_thresholds:tuple, number_of_processes:int=1):
-	"""Executes the task `time_resolution_vs_distance_in_TCT_1D_scan` for all subruns
-	of `TCT_1D_scan_sweeping_bias_voltage`. If the task `TCT_1D_scan_sweeping_bias_voltage`
-	is not found in the run being handled by `bureaucrat` the function
-	simply does nothing.
-	"""
-	Palpatine = bureaucrat
-	subruns = Palpatine.list_subruns_of_task('TCT_1D_scan_sweeping_bias_voltage')
-	
-	if len(subruns) == 0:
-		return
-	
-	with multiprocessing.Pool(number_of_processes) as p:
-		p.starmap(
-			time_resolution_vs_distance_in_TCT_1D_scan,
-			[(bur,cfd_t) for bur,cfd_t in zip(subruns, [cfd_thresholds]*len(subruns))]
-		)
-
 def pixel_time_resolution(bureaucrat:RunBureaucrat, approximate_window_size_meters:float, approximate_laser_size_meters:float, force:bool=False):
 	"""Calculates a time resolution as a single number representative of
 	DUT assuming the time resolution is uniform along the active area."""
@@ -315,40 +281,39 @@ def pixel_time_resolution(bureaucrat:RunBureaucrat, approximate_window_size_mete
 			include_plotlyjs = 'cdn',
 		)
 
-def script_core(bureaucrat:RunBureaucrat, number_of_bootstrapped_replicas:int=33, cfd_thresholds:tuple=(20,20), force:bool=False):
-	Albert = bureaucrat
+def time_resolution_vs_bias_voltage(bureaucrat:RunBureaucrat):
+	"""Collects the time resolution at each voltage for a `TCT_1D_scan_sweeping_bias_voltage`"""
+	bureaucrat.check_these_tasks_were_run_successfully('TCT_1D_scan_sweeping_bias_voltage')
+	concat_this = []
+	for subrun_bureaucrat in bureaucrat.list_subruns_of_task('TCT_1D_scan_sweeping_bias_voltage'):
+		subrun_bureaucrat.check_these_tasks_were_run_successfully(['pixel_time_resolution'])
+		s = pandas.read_pickle(subrun_bureaucrat.path_to_directory_of_task('pixel_time_resolution')/'time_resolution.pickle')
+		s['run_name'] = subrun_bureaucrat.run_name
+		df = pandas.DataFrame(s.to_dict(), index=[0]).set_index('run_name')
+		concat_this.append(df)
+	df = pandas.concat(concat_this)
+	measured_data = summarize_measured_data.read_summarized_data_in_TCT_1D_scan_sweeping_bias_voltage(bureaucrat)
+	measured_data.drop(columns=[c for c in measured_data.columns if 'Bias voltage (V)'!=c[0]], inplace=True)
+	df['Bias voltage (V)'] = measured_data[('Bias voltage (V)','nanmean')]
+	df['Bias voltage (V) error'] = measured_data[('Bias voltage (V)','nanstd')]
+	with bureaucrat.handle_task('time_resolution_vs_bias_voltage') as employee:
+		df.to_pickle(employee.path_to_directory_of_my_task/'time_resolution_vs_bias_voltage.pickle')
 	
-	# The following function will try to do it's job, if it is not possible because the required task is not there, it just returns without doing anything.
-	jitter_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(
-		bureaucrat = Albert, 
-		number_of_bootstrapped_replicas = number_of_bootstrapped_replicas,
-		force = force,
-		number_of_processes = max(multiprocessing.cpu_count()-1,1),
-		silent = True,
-	)
-	time_resolution_vs_distance_in_TCT_1D_scan_sweeping_bias_voltage(
-		bureaucrat = Albert,
-		cfd_thresholds = cfd_thresholds,
-		number_of_processes = max(multiprocessing.cpu_count()-1,1),
-	)
+		fig = px.line(
+			df.sort_values('Bias voltage (V)'),
+			x = 'Bias voltage (V)',
+			error_x = 'Bias voltage (V) error',
+			y = 'Time resolution (s)',
+			error_y = 'Time resolution (s) error',
+			markers = True,
+			title = f'Time resolution vs bias voltage in TCT<br><sup>Run: {bureaucrat.run_name}</sup>',
+		)
+		fig.update_xaxes(autorange="reversed")
+		fig.write_html(
+			employee.path_to_directory_of_my_task/'time_resolution_vs_bias_voltage.html',
+			include_plotlyjs = 'cdn',
+		)
 	
-	if Albert.was_task_run_successfully('TCT_1D_scan'):
-		jitter_vs_distance_in_TCT_1D_scan(
-			bureaucrat = Albert, 
-			number_of_bootstrapped_replicas = number_of_bootstrapped_replicas, 
-			force = force
-		)
-		time_resolution_vs_distance_in_TCT_1D_scan(
-			bureaucrat = Albert,
-			cfd_thresholds = cfd_thresholds,
-		)
-		pixel_time_resolution(
-			bureaucrat = Albert, 
-			approximate_window_size_meters = 250e-6,
-			approximate_laser_size_meters = 11e-6,
-			force = force,
-		)
-
 if __name__ == '__main__':
 	import argparse
 
@@ -370,9 +335,6 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	
 	Enrique = RunBureaucrat(Path(args.directory))
-	pixel_time_resolution(
+	time_resolution_vs_bias_voltage(
 		bureaucrat = Enrique,
-		force = args.force,
-		approximate_window_size_meters = 250e-6,
-		approximate_laser_size_meters = 11e-6,
 	)
