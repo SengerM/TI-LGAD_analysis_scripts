@@ -5,6 +5,7 @@ import distance_calibration
 import summarize_measured_data
 import time_resolution
 import multiprocessing
+import inter_pixel_distance
 
 def run_tasks_on_TCT_1D_scan(bureaucrat:RunBureaucrat, force:bool=False, silent:bool=True):
 	"""Runs ALL the analysis tasks for a TCT 1D scan on a TI-LGAD."""
@@ -60,6 +61,14 @@ def run_tasks_on_TCT_1D_scan(bureaucrat:RunBureaucrat, force:bool=False, silent:
 		bureaucrat = bureaucrat,
 		approximate_window_size_meters = WINDOW_SIZE_METERS,
 		approximate_laser_size_meters = LASER_SIZE_METERS,
+		force = force,
+	)
+	if not silent:
+		print(f'Running `inter_pixel_distance.inter_pixel_distance` on {bureaucrat.run_name}...')
+	inter_pixel_distance.inter_pixel_distance(
+		bureaucrat = bureaucrat,
+		number_of_bootstrapped_replicas = 11,
+		threshold_percent = 50,
 		force = force,
 	)
 
