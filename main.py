@@ -54,6 +54,7 @@ def run_tasks_on_TCT_1D_scan(bureaucrat:RunBureaucrat, force:bool=False, silent:
 	time_resolution.time_resolution_vs_distance_in_TCT_1D_scan(
 		bureaucrat = bureaucrat,
 		cfd_thresholds = (20,20),
+		force = force,
 	)
 	if not silent:
 		print(f'Running `time_resolution.pixel_time_resolution` on {bureaucrat.run_name}...')

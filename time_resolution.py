@@ -179,10 +179,13 @@ def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootst
 			include_plotlyjs = 'cdn',
 		)
 
-def time_resolution_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, cfd_thresholds:tuple):
+def time_resolution_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, cfd_thresholds:tuple, force:bool=False):
 	Rick = bureaucrat
 	
 	Rick.check_these_tasks_were_run_successfully(['jitter_vs_distance_in_TCT_1D_scan', 'TCT_1D_scan'])
+	
+	if force==False and Rick.was_task_run_successfully('time_resolution_vs_distance_in_TCT_1D_scan'):
+		return
 	
 	with Rick.handle_task('time_resolution_vs_distance_in_TCT_1D_scan') as Ricks_employee:
 		jitter_df = load_whole_dataframe(Rick.path_to_directory_of_task('jitter_vs_distance_in_TCT_1D_scan')/'jitter.sqlite')
