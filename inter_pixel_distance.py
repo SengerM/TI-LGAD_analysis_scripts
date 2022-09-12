@@ -237,7 +237,7 @@ def inter_pixel_distance_vs_bias_voltage(bureaucrat:RunBureaucrat):
 	df['Bias voltage (V)'] = measured_data[('Bias voltage (V)','nanmean')]
 	df['Bias voltage (V) error'] = measured_data[('Bias voltage (V)','nanstd')]
 	with bureaucrat.handle_task('inter_pixel_distance_vs_bias_voltage') as employee:
-		df.to_pickle(employee.path_to_directory_of_my_task/'time_resolution_vs_bias_voltage.pickle')
+		df.to_pickle(employee.path_to_directory_of_my_task/'inter_pixel_distance_vs_bias_voltage.pickle')
 	
 		fig = px.line(
 			df.sort_values('Bias voltage (V)'),
@@ -257,8 +257,6 @@ def inter_pixel_distance_vs_bias_voltage(bureaucrat:RunBureaucrat):
 			include_plotlyjs = 'cdn',
 		)
 		
-		raise NotImplementedError()
-	
 if __name__ == '__main__':
 	import argparse
 
