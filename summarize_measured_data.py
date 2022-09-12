@@ -24,9 +24,7 @@ def summarize_measured_data(bureaucrat:RunBureaucrat, force:bool=False):
 	
 	with Paul.handle_task('summarize_measured_data') as Pauls_employee:
 		measured_data_df = load_whole_dataframe(Pauls_employee.path_to_directory_of_task('TCT_1D_scan')/'measured_data.sqlite')
-		
-		summary_df = measured_data_df.agg([numpy.nanmean, numpy.nanstd, utils.kMAD, numpy.nanmedian, numpy.nanmax, numpy.nanmin])
-		
+		summary_df = measured_data_df.drop(columns='When').agg([numpy.nanmean, numpy.nanstd, utils.kMAD, numpy.nanmedian, numpy.nanmax, numpy.nanmin])
 		summary_df.to_pickle(Pauls_employee.path_to_directory_of_my_task/'summary.pickle')
 
 def read_summarized_data_in_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:RunBureaucrat):
