@@ -73,7 +73,7 @@ def run_tasks_on_TCT_1D_scan(bureaucrat:RunBureaucrat, force:bool=False, silent:
 		force = force,
 	)
 
-def run_tasks_on_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:RunBureaucrat, number_of_processes:int=1, force:bool=False):
+def run_tasks_on_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:RunBureaucrat, number_of_processes:int=1, silent:bool=True, force:bool=False):
 	"""Runs ALL the analysis fora TCT 1D scan on a TI-LGAD."""
 	bureaucrat.check_these_tasks_were_run_successfully('TCT_1D_scan_sweeping_bias_voltage')
 	subruns = bureaucrat.list_subruns_of_task('TCT_1D_scan_sweeping_bias_voltage')
@@ -81,7 +81,7 @@ def run_tasks_on_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:RunBureaucrat, num
 	with multiprocessing.Pool(number_of_processes) as p:
 		p.starmap(
 			run_tasks_on_TCT_1D_scan,
-			[(bur,frc) for bur,frc in zip(subruns, [force]*len(subruns))]
+			[(bur,frc,slnt) for bur,frc,slnt in zip(subruns, [force]*len(subruns), [silent]*len(subruns))]
 		)
 	time_resolution.time_resolution_vs_bias_voltage(bureaucrat)
 	inter_pixel_distance.inter_pixel_distance_vs_bias_voltage(bureaucrat)
@@ -98,6 +98,7 @@ def main(bureaucrat:RunBureaucrat, force:bool=False):
 			bureaucrat = bureaucrat,
 			number_of_processes = max(multiprocessing.cpu_count()-1,1),
 			force = force,
+			silent = False,
 		)
 	else:
 		raise RuntimeError(f'Dont know what tasks to run on run {repr(bureaucrat.run_name)} located in {bureaucrat.path_to_run_directory}')
