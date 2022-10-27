@@ -11,8 +11,6 @@ import plotly.express as px
 from huge_dataframe.SQLiteDataFrame import SQLiteDataFrameDumper, load_whole_dataframe # https://github.com/SengerM/huge_dataframe
 import summarize_measured_data
 
-graficas_px_utils.set_my_template_as_default()
-
 def calculate_inter_pixel_distance_by_linear_interpolation_using_normalized_amplitude(data_df:pandas.DataFrame, distance:pandas.Series, channel_positions:pandas.Series, approximate_window_size_meters:float, threshold_percent:int=50)->dict:
 	"""Calculate the inter-pixel distance using linear interpolation in
 	along the average normalized amplitude along the 1D scan.
@@ -90,8 +88,8 @@ def calculate_inter_pixel_distance_by_linear_interpolation_using_normalized_ampl
 	averaged_in_position = averaged_in_position.join(distance, on='n_position')
 	averaged_in_position = averaged_in_position.join(channel_positions, on='n_channel')
 	
-	rows = (averaged_in_position['Distance (m)'] > averaged_in_position['Distance (m)'].mean() - approximate_window_size_meters/2)
-	rows &= (averaged_in_position['Distance (m)'] < averaged_in_position['Distance (m)'].mean() + approximate_window_size_meters/2)
+	rows = (averaged_in_position['Distance (m)'] > averaged_in_position['Distance (m)'].mean() - approximate_window_size_meters/3)
+	rows &= (averaged_in_position['Distance (m)'] < averaged_in_position['Distance (m)'].mean() + approximate_window_size_meters/3)
 	averaged_in_position = averaged_in_position.loc[rows]
 	
 	threshold_distance_for_each_pad = {}
@@ -125,7 +123,7 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 		
 		channel_positions = pandas.read_pickle(bureaucrat.path_to_directory_of_task('tag_channels_left_right')/'channels_position.pickle')
 		
-		parsed_from_waveforms.index = measured_data.index.droplevel(level='n_waveform')
+		parsed_from_waveforms.reset_index('n_waveform', drop=True, inplace=True)
 		parsed_from_waveforms = parsed_from_waveforms.join(utils.normalize_data(parsed_from_waveforms, normalization_factors_df))
 		parsed_from_waveforms = parsed_from_waveforms.query('n_pulse==1')
 		
@@ -259,6 +257,8 @@ def inter_pixel_distance_vs_bias_voltage(bureaucrat:RunBureaucrat):
 		
 if __name__ == '__main__':
 	import argparse
+	
+	graficas_px_utils.set_my_template_as_default()
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--dir',
@@ -278,5 +278,5 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	
 	Enrique = RunBureaucrat(Path(args.directory))
-	# ~ inter_pixel_distance(bureaucrat=Enrique, number_of_bootstrapped_replicas=11, threshold_percent=50, force=True)
-	inter_pixel_distance_vs_bias_voltage(bureaucrat=Enrique)
+	inter_pixel_distance(bureaucrat=Enrique, number_of_bootstrapped_replicas=11, threshold_percent=50, force=True)
+	# ~ inter_pixel_distance_vs_bias_voltage(bureaucrat=Enrique)
