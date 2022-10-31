@@ -216,6 +216,16 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 			include_plotlyjs = 'cdn',
 		)
 
+def read_inter_pixel_distance(bureaucrat:RunBureaucrat):
+	if bureaucrat.was_task_run_successfully('TCT_1D_scan'):
+		bureaucrat.check_these_tasks_were_run_successfully('inter_pixel_distance')
+		return pandas.read_pickle(bureaucrat.path_to_directory_of_task('inter_pixel_distance')/'inter_pixel_distance.pickle')
+	elif bureaucrat.was_task_run_successfully('TCT_1D_scan_sweeping_bias_voltage'):
+		bureaucrat.check_these_tasks_were_run_successfully('inter_pixel_distance_vs_bias_voltage')
+		return pandas.read_pickle(bureaucrat.path_to_directory_of_task('inter_pixel_distance_vs_bias_voltage')/'inter_pixel_distance_vs_bias_voltage.pickle')
+	else:
+		raise RuntimeError(f'Dont know how to read inter-pixel distance from run {repr(bureaucrat.run_name)} located in {repr(str(bureaucrat.path_to_run_directory))}.')
+
 def inter_pixel_distance_vs_bias_voltage(bureaucrat:RunBureaucrat):
 	bureaucrat.check_these_tasks_were_run_successfully('TCT_1D_scan_sweeping_bias_voltage')
 	concat_this = []
@@ -254,7 +264,7 @@ def inter_pixel_distance_vs_bias_voltage(bureaucrat:RunBureaucrat):
 			employee.path_to_directory_of_my_task/'inter_pixel_distance_vs_bias_voltage.html',
 			include_plotlyjs = 'cdn',
 		)
-		
+
 if __name__ == '__main__':
 	import argparse
 	
@@ -278,5 +288,6 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	
 	Enrique = RunBureaucrat(Path(args.directory))
-	inter_pixel_distance(bureaucrat=Enrique, number_of_bootstrapped_replicas=11, threshold_percent=50, force=True)
+	# ~ inter_pixel_distance(bureaucrat=Enrique, number_of_bootstrapped_replicas=11, threshold_percent=50, force=True)
 	# ~ inter_pixel_distance_vs_bias_voltage(bureaucrat=Enrique)
+	print(read_inter_pixel_distance(Enrique))
