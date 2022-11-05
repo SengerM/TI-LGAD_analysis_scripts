@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from huge_dataframe.SQLiteDataFrame import SQLiteDataFrameDumper, load_whole_dataframe # https://github.com/SengerM/huge_dataframe
 import summarize_measured_data
+from uncertainties import ufloat
 
 def calculate_inter_pixel_distance_by_linear_interpolation_using_normalized_amplitude(data_df:pandas.DataFrame, distance:pandas.Series, channel_positions:pandas.Series, approximate_window_size_meters:float, threshold_percent:int=50)->dict:
 	"""Calculate the inter-pixel distance using linear interpolation in
@@ -201,14 +202,35 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 		averaged_in_position = averaged_in_position.join(distance, on='n_position')
 		averaged_in_position = averaged_in_position.join(channel_positions, on='n_channel')
 		
+		summed = averaged_in_position[['Amplitude (V) normalized nanmedian','Amplitude (V) normalized kMAD']].copy()
+		summed['Normalized amplitude ufloat'] = summed.apply(lambda x: ufloat(x['Amplitude (V) normalized nanmedian'],x['Amplitude (V) normalized kMAD']), axis=1)
+		summed.drop(columns=['Amplitude (V) normalized nanmedian','Amplitude (V) normalized kMAD'], inplace=True)
+		summed = summed.groupby('n_position').sum()
+		summed['Normalized amplitude'] = summed['Normalized amplitude ufloat'].apply(lambda x: x.nominal_value)
+		summed['Normalized amplitude error'] = summed['Normalized amplitude ufloat'].apply(lambda x: x.std_dev)
+		summed.drop(columns=['Normalized amplitude ufloat'], inplace=True)
+		summed = summed.join(averaged_in_position.reset_index(['n_channel','n_pulse'], drop=True)['Distance (m)'], on='n_position')
+		summed['channel_position'] = 'left+right'
+		
+		averaged_in_position.rename(columns={'Amplitude (V) normalized nanmedian': 'Normalized amplitude', 'Amplitude (V) normalized kMAD': 'Normalized amplitude error'}, inplace=True)
+		averaged_in_position.reset_index(['n_channel','n_pulse'], inplace=True, drop=True)
+		
+		averaged_in_position = pandas.concat([summed,averaged_in_position])
+		
+		averaged_in_position = averaged_in_position.sort_values(by=['channel_position'], key=lambda x: x.map({'left':1,'right':2,'left+right':3}))
+		
 		fig = graficas_px_utils.line(
-			data_frame = averaged_in_position.sort_values(['n_position','channel_position']),
+			data_frame = averaged_in_position.sort_values(['n_position']),
 			x = 'Distance (m)',
-			y = 'Amplitude (V) normalized nanmedian',
-			error_y = 'Amplitude (V) normalized kMAD',
+			y = 'Normalized amplitude',
+			error_y = 'Normalized amplitude error',
 			error_y_mode = 'band',
 			color = 'channel_position',
 			title = f'Inter-pixel distance measurement<br><sup>Run: {bureaucrat.run_name}</sup>',
+			labels = {
+				'Amplitude (V) normalized nanmedian': 'Normalized amplitude',
+				'channel_position': 'Channel',
+			}
 		)
 		fig.update_layout(annotations=[arrow,text])
 		fig.write_html(
@@ -288,6 +310,4 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	
 	Enrique = RunBureaucrat(Path(args.directory))
-	# ~ inter_pixel_distance(bureaucrat=Enrique, number_of_bootstrapped_replicas=11, threshold_percent=50, force=True)
-	# ~ inter_pixel_distance_vs_bias_voltage(bureaucrat=Enrique)
-	print(read_inter_pixel_distance(Enrique))
+	inter_pixel_distance(bureaucrat=Enrique, number_of_bootstrapped_replicas=11, threshold_percent=50, force=args.force)

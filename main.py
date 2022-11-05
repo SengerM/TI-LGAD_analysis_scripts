@@ -6,6 +6,7 @@ import summarize_measured_data
 import time_resolution
 import multiprocessing
 import inter_pixel_distance
+import grafica.plotly_utils.utils
 
 def run_tasks_on_TCT_1D_scan(bureaucrat:RunBureaucrat, force:bool=False, silent:bool=True):
 	"""Runs ALL the analysis tasks for a TCT 1D scan on a TI-LGAD."""
@@ -96,7 +97,7 @@ def main(bureaucrat:RunBureaucrat, force:bool=False):
 	elif bureaucrat.was_task_run_successfully('TCT_1D_scan_sweeping_bias_voltage'):
 		run_tasks_on_TCT_1D_scan_sweeping_bias_voltage(
 			bureaucrat = bureaucrat,
-			number_of_processes = max(multiprocessing.cpu_count()-1,1),
+			number_of_processes = 3,#max(multiprocessing.cpu_count()-1,1),
 			force = force,
 			silent = False,
 		)
@@ -105,7 +106,9 @@ def main(bureaucrat:RunBureaucrat, force:bool=False):
 
 if __name__=='__main__':
 	import argparse
-
+	
+	grafica.plotly_utils.utils.set_my_template_as_default()
+	
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--dir',
 		metavar = 'path', 

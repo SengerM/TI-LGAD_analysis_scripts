@@ -12,8 +12,6 @@ import grafica.plotly_utils.utils as graficas_px_utils
 import plotly.graph_objects as go
 from uncertainties import ufloat
 
-graficas_px_utils.set_my_template_as_default()
-
 def metal_silicon_transition_model_function_left_pad(x, y_scale, laser_sigma, x_offset, y_offset, nan_policy='omit'):
 	if nan_policy=='omit':
 		x = x[~numpy.isnan(x)]
@@ -232,7 +230,7 @@ def distance_calibration_TCT_1D_scan(bureaucrat:RunBureaucrat, window_size_meter
 					x = x,
 					y = fit_results_on_data[channel_position].eval(params=fit_results_on_data[channel_position].params, x = x),
 					mode = 'lines',
-					name = f'Fit erf {channel_position} pad, σ<sub>laser</sub>={results.loc[(channel_position,"laser_sigma"),("result_on_real_data","value")]*1e6:.2f} ± {results.loc[(channel_position,"laser_sigma"),("result_from_fit","std")]*1e6:.2f} µm',
+					name = f'Fit erf {channel_position} pad, σ<sub>laser</sub>={results.loc[(channel_position,"laser_sigma"),("result_on_real_data","value")]*1e6:.2f}±{results.loc[(channel_position,"laser_sigma"),("result_from_fit","std")]*1e6:.2f} µm',
 					line = dict(color='black', dash='dash'),
 				)
 			)
@@ -273,7 +271,9 @@ def distance_calibration_TCT_1D_scan(bureaucrat:RunBureaucrat, window_size_meter
 		
 if __name__=='__main__':
 	import argparse
-
+	
+	graficas_px_utils.set_my_template_as_default()
+	
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--dir',
 		metavar = 'path', 
