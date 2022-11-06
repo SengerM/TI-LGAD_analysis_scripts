@@ -226,10 +226,8 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 		
 		averaged_in_position = pandas.concat([summed,averaged_in_position])
 		
-		averaged_in_position = averaged_in_position.sort_values(by=['channel_position'], key=lambda x: x.map({'left':1,'right':2,'left+right':3}))
-		
 		fig = graficas_px_utils.line(
-			data_frame = averaged_in_position.sort_values(['n_position']),
+			data_frame = averaged_in_position.sort_values(by=['channel_position','n_position'], key=lambda x: x.map({'left':1,'right':2,'left+right':3})),
 			x = 'Distance (m)',
 			y = 'Normalized amplitude',
 			error_y = 'Normalized amplitude error',

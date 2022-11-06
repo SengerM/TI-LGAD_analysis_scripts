@@ -17,20 +17,20 @@ def gaussian(x, mu, sigma, amplitude=1):
 	return amplitude/sigma/(2*numpy.pi)**.5*numpy.exp(-((x-mu)/sigma)**2/2)
 
 def plot_statistics_vs_distance(df, column_name):
-	averaged_in_position_df = df.groupby(['n_position','n_channel','n_pulse']).agg([numpy.nanmedian, kMAD])
-	averaged_in_position_df.columns = [f'{col[0]} {col[1]}' for col in averaged_in_position_df.columns]
+	averaged_in_position_df = df.groupby(['n_position','n_channel','n_pulse']).agg([utils.FUNCTION_TO_USE_FOR_AVERAGE, utils.FUNCTION_TO_USE_FOR_FLUCTUATIONS])
+	averaged_in_position_df.columns = [' '.join(col) for col in averaged_in_position_df.columns]
+	averaged_in_position_df.rename(
+		columns = {col: col.replace(f' {utils.FUNCTION_TO_USE_FOR_AVERAGE.__name__}','').replace(f' {utils.FUNCTION_TO_USE_FOR_FLUCTUATIONS.__name__}') + (' error' if utils.FUNCTION_TO_USE_FOR_FLUCTUATIONS.__name__ in col else '') for col in averaged_in_position_df.columns},
+		inplace = True,
+	)
 	return line(
 		data_frame = averaged_in_position_df.reset_index(drop=False),
-		x = 'Distance (m) nanmedian',
-		y = f'{column_name} nanmedian',
-		error_y = f'{column_name} kMAD',
+		x = 'Distance (m)',
+		y = column_name,
+		error_y = f'{column_name} error',
 		error_y_mode = 'bands',
 		color = 'n_channel',
 		line_dash = 'n_pulse',
-		labels = {
-			'Distance (m) nanmedian': 'Distance (m)',
-			f'{column_name} nanmedian': column_name,
-		},
 	)
 
 def calculate_Δt(data_df:pandas.DataFrame)->pandas.DataFrame:
@@ -133,7 +133,7 @@ def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootst
 		data_df = load_parsed_from_waveforms_and_measured_data_in_TCT_1D_scan(Nicanor)
 		data_df['Distance (m)'] = integrate_distance_given_path(list(data_df[['x (m)', 'y (m)', 'z (m)']].to_numpy()))
 		
-		data_df.drop(columns=[col for col in data_df.columns if col not in {'Distance (m)', 't_10 (s)', 't_20 (s)', 't_30 (s)', 't_40 (s)', 't_50 (s)', 't_60 (s)', 't_70 (s)', 't_80 (s)', 't_90 (s)'}], inplace=True)
+		data_df = data_df[['Distance (m)', 't_10 (s)', 't_20 (s)', 't_30 (s)', 't_40 (s)', 't_50 (s)', 't_60 (s)', 't_70 (s)', 't_80 (s)', 't_90 (s)']]
 		
 		jitters_list = []
 		for n_bootstrap in range(number_of_bootstrapped_replicas+1):
@@ -142,9 +142,8 @@ def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootst
 			else:
 				df = resample_by_events(data_df)
 			Δt_df = calculate_Δt(df)
-			jitter = Δt_df.groupby(level=['n_position','n_channel','k1_percent','k2_percent']).agg(func=(kMAD, numpy.std))#, sigma_from_gaussian_fit))
+			jitter = Δt_df.groupby(level=['n_position','n_channel','k1_percent','k2_percent']).agg(func=kMAD) # Here the best would be to use the Gaussian fit, but it takes too long. After a few iterations I noticed that kMAD produces much better results than std, due to outliers.
 			jitter.rename(columns={'Δt (s)': 'Jitter (s)'}, inplace=True)
-			jitter.columns = [f'{col[0]} {col[1]}' for col in jitter.columns]
 			if n_bootstrap == 0:
 				jitter_df = jitter.copy()
 			jitter['n_bootstrap'] = n_bootstrap
@@ -152,9 +151,9 @@ def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootst
 			jitters_list.append(jitter)
 		jitters_bootstrapped_df = pandas.concat(jitters_list)
 		
-		jitter_error_df = jitters_bootstrapped_df.groupby(['n_position','n_channel','k1_percent','k2_percent']).std()
-		jitter_error_df = jitter_error_df.rename(columns = {col: f'{col} error' for col in jitter_error_df.columns})
-		jitter_df = jitter_df.merge(jitter_error_df, left_index=True, right_index=True)
+		jitter_df = jitters_bootstrapped_df.groupby(['n_position','n_channel','k1_percent','k2_percent']).agg([numpy.nanmean, numpy.nanstd])
+		jitter_df.columns = [' '.join(col) for col in jitter_df.columns]
+		jitter_df = jitter_df.rename(columns = {'Jitter (s) nanmean': 'Jitter (s)', 'Jitter (s) nanstd': 'Jitter (s) error'})
 		
 		with SQLiteDataFrameDumper(Nicanors_employee.path_to_directory_of_my_task/Path('jitter.sqlite'), dump_after_n_appends=100) as dumper:
 			dumper.append(jitter_df)
@@ -165,14 +164,13 @@ def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootst
 		jitter_df = jitter_df.merge(distance, left_index=True, right_index=True)
 		
 		fig = line(
-			data_frame = jitter_df.query('`k1_percent`==20').query('`k2_percent`==20').query('`Jitter (s) kMAD`<200e-12').reset_index(drop=False).sort_values('n_position'),
+			data_frame = jitter_df.query('`k1_percent`==20').query('`k2_percent`==20').query('`Jitter (s)`<200e-12').reset_index(drop=False).sort_values('n_position'),
 			x = 'Distance (m)',
-			y = 'Jitter (s) kMAD',
-			error_y = 'Jitter (s) kMAD error',
+			y = 'Jitter (s)',
+			error_y = 'Jitter (s) error',
 			error_y_mode = 'bands',
 			color = 'n_channel',
 			title = f'Jitter vs position<br><sup>Run: {Nicanor.run_name}</sup>',
-			labels = {'Jitter (s) kMAD': 'Jitter (s)'},
 		)
 		fig.write_html(
 			str(Nicanors_employee.path_to_directory_of_my_task/'jitter_vs_distance.html'),
@@ -202,14 +200,13 @@ def time_resolution_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, cfd_thr
 		time_resolution.to_pickle(Ricks_employee.path_to_directory_of_my_task/'time_resolution.pickle')
 		
 		fig = line(
-			data_frame = time_resolution.query('`Time resolution (s) kMAD`<200e-12').reset_index(drop=False).sort_values(['n_position','n_channel']),
+			data_frame = time_resolution.query('`Time resolution (s)`<200e-12').reset_index(drop=False).sort_values(['n_position','n_channel']),
 			x = 'Distance (m)',
-			y = 'Time resolution (s) kMAD',
-			error_y = 'Time resolution (s) kMAD error',
+			y = 'Time resolution (s)',
+			error_y = 'Time resolution (s) error',
 			error_y_mode = 'bands',
 			color = 'n_channel',
 			title = f'Time resolution vs position<br><sup>Run: {Rick.run_name}</sup>',
-			labels = {'Time resolution (s) kMAD': 'Time resolution (s)'},
 		)
 		fig.write_html(
 			str(Ricks_employee.path_to_directory_of_my_task/'time_resolution_vs_distance.html'),
@@ -251,21 +248,20 @@ def pixel_time_resolution(bureaucrat:RunBureaucrat, approximate_window_size_mete
 		
 		time_resolution_final_result = pandas.Series(
 			{
-				'Time resolution (s)': time_resolution_final_result.loc['mean','Time resolution (s) kMAD'],
-				'Time resolution (s) error': time_resolution_final_result.loc['std','Time resolution (s) kMAD'],
+				'Time resolution (s)': time_resolution_final_result.loc['mean','Time resolution (s)'],
+				'Time resolution (s) error': time_resolution_final_result.loc['std','Time resolution (s)'],
 			}
 		)
 		time_resolution_final_result.to_pickle(employee.path_to_directory_of_my_task/'time_resolution.pickle')
 		
 		fig = line(
-			data_frame = time_resolution_data.query('`Time resolution (s) kMAD`<200e-12').query('`Time resolution (s) kMAD error`<100e-12').reset_index(drop=False).sort_values(['n_position','n_channel']),
+			data_frame = time_resolution_data.query('`Time resolution (s)`<200e-12').query('`Time resolution (s) error`<100e-12').reset_index(drop=False).sort_values(['n_position','n_channel']),
 			x = 'Distance (m)',
-			y = 'Time resolution (s) kMAD',
-			error_y = 'Time resolution (s) kMAD error',
+			y = 'Time resolution (s)',
+			error_y = 'Time resolution (s) error',
 			error_y_mode = 'bands',
 			color = 'channel_position',
 			title = f'TCT time resolution<br><sup>Run: {bureaucrat.run_name}</sup>',
-			labels = {'Time resolution (s) kMAD': 'Time resolution (s)'},
 		)
 		fig.add_hrect(
 			y0 = time_resolution_final_result['Time resolution (s)']-time_resolution_final_result['Time resolution (s) error'],
@@ -277,6 +273,7 @@ def pixel_time_resolution(bureaucrat:RunBureaucrat, approximate_window_size_mete
 		fig.add_hline(
 			y = time_resolution_final_result['Time resolution (s)'],
 			annotation_text = f"Time resolution = {time_resolution_final_result['Time resolution (s)']*1e12:.2f}±{time_resolution_final_result['Time resolution (s) error']*1e12:.2f} ps",
+			# ~ annotation_font_color = '#31ba2f',
 		)
 		fig.update_yaxes(range=[0, 100e-12])
 		fig.write_html(
@@ -338,6 +335,9 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	
 	Enrique = RunBureaucrat(Path(args.directory))
-	time_resolution_vs_bias_voltage(
+	pixel_time_resolution(
 		bureaucrat = Enrique,
+		force = args.force,
+		approximate_window_size_meters = 250e-6,
+		approximate_laser_size_meters = 10e-6,
 	)

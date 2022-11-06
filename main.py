@@ -8,7 +8,7 @@ import multiprocessing
 import inter_pixel_distance
 import grafica.plotly_utils.utils
 
-def run_tasks_on_TCT_1D_scan(bureaucrat:RunBureaucrat, force:bool=False, silent:bool=True):
+def run_tasks_on_TCT_1D_scan(bureaucrat:RunBureaucrat, force:bool=False, silent:bool=True, skip_timing_analysis:bool=False):
 	"""Runs ALL the analysis tasks for a TCT 1D scan on a TI-LGAD."""
 	bureaucrat.check_these_tasks_were_run_successfully(['TCT_1D_scan','parse_waveforms'])
 	
@@ -43,28 +43,29 @@ def run_tasks_on_TCT_1D_scan(bureaucrat:RunBureaucrat, force:bool=False, silent:
 		number_of_bootstrapped_replicas = 11,
 		force = force,
 	)
-	if not silent:
-		print(f'Running `time_resolution.jitter_vs_distance_in_TCT_1D_scan` on {bureaucrat.run_name}...')
-	time_resolution.jitter_vs_distance_in_TCT_1D_scan(
-		bureaucrat = bureaucrat,
-		number_of_bootstrapped_replicas = 11,
-		force = force,
-	)
-	if not silent:
-		print(f'Running `time_resolution.time_resolution_vs_distance_in_TCT_1D_scan` on {bureaucrat.run_name}...')
-	time_resolution.time_resolution_vs_distance_in_TCT_1D_scan(
-		bureaucrat = bureaucrat,
-		cfd_thresholds = (20,20),
-		force = force,
-	)
-	if not silent:
-		print(f'Running `time_resolution.pixel_time_resolution` on {bureaucrat.run_name}...')
-	time_resolution.pixel_time_resolution(
-		bureaucrat = bureaucrat,
-		approximate_window_size_meters = WINDOW_SIZE_METERS,
-		approximate_laser_size_meters = LASER_SIZE_METERS,
-		force = force,
-	)
+	if not skip_timing_analysis:
+		if not silent:
+			print(f'Running `time_resolution.jitter_vs_distance_in_TCT_1D_scan` on {bureaucrat.run_name}...')
+		time_resolution.jitter_vs_distance_in_TCT_1D_scan(
+			bureaucrat = bureaucrat,
+			number_of_bootstrapped_replicas = 11,
+			force = force,
+		)
+		if not silent:
+			print(f'Running `time_resolution.time_resolution_vs_distance_in_TCT_1D_scan` on {bureaucrat.run_name}...')
+		time_resolution.time_resolution_vs_distance_in_TCT_1D_scan(
+			bureaucrat = bureaucrat,
+			cfd_thresholds = (20,20),
+			force = force,
+		)
+		if not silent:
+			print(f'Running `time_resolution.pixel_time_resolution` on {bureaucrat.run_name}...')
+		time_resolution.pixel_time_resolution(
+			bureaucrat = bureaucrat,
+			approximate_window_size_meters = WINDOW_SIZE_METERS,
+			approximate_laser_size_meters = LASER_SIZE_METERS,
+			force = force,
+		)
 	if not silent:
 		print(f'Running `inter_pixel_distance.inter_pixel_distance` on {bureaucrat.run_name}...')
 	inter_pixel_distance.inter_pixel_distance(
@@ -74,7 +75,7 @@ def run_tasks_on_TCT_1D_scan(bureaucrat:RunBureaucrat, force:bool=False, silent:
 		force = force,
 	)
 
-def run_tasks_on_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:RunBureaucrat, number_of_processes:int=1, silent:bool=True, force:bool=False):
+def run_tasks_on_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:RunBureaucrat, number_of_processes:int=1, silent:bool=True, force:bool=False, skip_timing_analysis:bool=False):
 	"""Runs ALL the analysis fora TCT 1D scan on a TI-LGAD."""
 	bureaucrat.check_these_tasks_were_run_successfully('TCT_1D_scan_sweeping_bias_voltage')
 	subruns = bureaucrat.list_subruns_of_task('TCT_1D_scan_sweeping_bias_voltage')
@@ -82,17 +83,19 @@ def run_tasks_on_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:RunBureaucrat, num
 	with multiprocessing.Pool(number_of_processes) as p:
 		p.starmap(
 			run_tasks_on_TCT_1D_scan,
-			[(bur,frc,slnt) for bur,frc,slnt in zip(subruns, [force]*len(subruns), [silent]*len(subruns))]
+			[(bur,frc,slnt,skp_tmng) for bur,frc,slnt,skp_tmng in zip(subruns, [force]*len(subruns), [silent]*len(subruns), [skip_timing_analysis]*len(subruns))]
 		)
-	time_resolution.time_resolution_vs_bias_voltage(bureaucrat)
+	if skip_timing_analysis == False:
+		time_resolution.time_resolution_vs_bias_voltage(bureaucrat)
 	inter_pixel_distance.inter_pixel_distance_vs_bias_voltage(bureaucrat)
 
-def main(bureaucrat:RunBureaucrat, force:bool=False):
+def main(bureaucrat:RunBureaucrat, force:bool=False, skip_timing_analysis:bool=False):
 	if bureaucrat.was_task_run_successfully('TCT_1D_scan'):
 		run_tasks_on_TCT_1D_scan(
 			bureaucrat = bureaucrat,
 			force = force,
 			silent = False,
+			skip_timing_analysis = skip_timing_analysis,
 		)
 	elif bureaucrat.was_task_run_successfully('TCT_1D_scan_sweeping_bias_voltage'):
 		run_tasks_on_TCT_1D_scan_sweeping_bias_voltage(
@@ -100,6 +103,7 @@ def main(bureaucrat:RunBureaucrat, force:bool=False):
 			number_of_processes = 3,#max(multiprocessing.cpu_count()-1,1),
 			force = force,
 			silent = False,
+			skip_timing_analysis = skip_timing_analysis,
 		)
 	else:
 		raise RuntimeError(f'Dont know what tasks to run on run {repr(bureaucrat.run_name)} located in {bureaucrat.path_to_run_directory}')
@@ -130,5 +134,6 @@ if __name__=='__main__':
 	main(
 		bureaucrat = Enrique,
 		force = args.force,
+		skip_timing_analysis = True,
 	)
 
