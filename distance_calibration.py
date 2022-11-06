@@ -189,8 +189,15 @@ def distance_calibration_TCT_1D_scan(bureaucrat:RunBureaucrat, window_size_meter
 		)
 		s.to_pickle(Cristina.path_to_directory_of_my_task/'distance_calibration_factors.pickle')
 		
-		averaged_in_position_df = data_df[['Amplitude (V) normalized']].groupby(['n_position','n_channel','n_pulse']).agg([numpy.nanmedian, utils.kMAD])
-		averaged_in_position_df.columns = [f'{col[0]} {col[1]}' for col in averaged_in_position_df.columns]
+		averaged_in_position_df = data_df[['Amplitude (V) normalized']].groupby(['n_position','n_channel','n_pulse']).agg([utils.FUNCTION_TO_USE_FOR_AVERAGE, utils.FUNCTION_TO_USE_FOR_FLUCTUATIONS])
+		averaged_in_position_df.columns = [' '.join(col) for col in averaged_in_position_df.columns]
+		averaged_in_position_df.rename(
+			columns = {
+				f'Amplitude (V) normalized {utils.FUNCTION_TO_USE_FOR_AVERAGE.__name__}': 'Normalized amplitude',
+				f'Amplitude (V) normalized {utils.FUNCTION_TO_USE_FOR_FLUCTUATIONS.__name__}': 'Normalized amplitude error',
+			},
+			inplace = True,
+		)
 		averaged_in_position_df = averaged_in_position_df.join(distance, on='n_position')
 		averaged_in_position_df = averaged_in_position_df.join(channel_positions, on='n_channel')
 		
@@ -199,8 +206,8 @@ def distance_calibration_TCT_1D_scan(bureaucrat:RunBureaucrat, window_size_meter
 		fig = graficas_px_utils.line(
 			data_frame = averaged_in_position_df.reset_index(drop=False).sort_values(['channel_position','n_position']),
 			x = 'Calibrated distance (m)',
-			y = 'Amplitude (V) normalized nanmedian',
-			error_y = 'Amplitude (V) normalized kMAD',
+			y = 'Normalized amplitude',
+			error_y = 'Normalized amplitude error',
 			error_y_mode = 'bands',
 			color = 'channel_position',
 			title = f'Normalized amplitude after distance calibration<br><sup>Run: {Néstor.run_name}</sup>',
@@ -213,8 +220,8 @@ def distance_calibration_TCT_1D_scan(bureaucrat:RunBureaucrat, window_size_meter
 		fig = graficas_px_utils.line(
 			data_frame = averaged_in_position_df.reset_index(drop=False).sort_values(['channel_position','n_position']),
 			x = 'Distance (m)',
-			y = 'Amplitude (V) normalized nanmedian',
-			error_y = 'Amplitude (V) normalized kMAD',
+			y = 'Normalized amplitude',
+			error_y = 'Normalized amplitude error',
 			error_y_mode = 'bands',
 			color = 'channel_position',
 			title = f'ERF fit for distance calibration<br><sup>Run: {Néstor.run_name}</sup>',
