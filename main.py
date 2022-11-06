@@ -89,7 +89,7 @@ def run_tasks_on_TCT_1D_scan_sweeping_bias_voltage(bureaucrat:RunBureaucrat, num
 		time_resolution.time_resolution_vs_bias_voltage(bureaucrat)
 	inter_pixel_distance.inter_pixel_distance_vs_bias_voltage(bureaucrat)
 
-def main(bureaucrat:RunBureaucrat, force:bool=False, skip_timing_analysis:bool=False):
+def main(bureaucrat:RunBureaucrat, force:bool=False, skip_timing_analysis:bool=False, number_of_processes:int=1):
 	if bureaucrat.was_task_run_successfully('TCT_1D_scan'):
 		run_tasks_on_TCT_1D_scan(
 			bureaucrat = bureaucrat,
@@ -100,7 +100,7 @@ def main(bureaucrat:RunBureaucrat, force:bool=False, skip_timing_analysis:bool=F
 	elif bureaucrat.was_task_run_successfully('TCT_1D_scan_sweeping_bias_voltage'):
 		run_tasks_on_TCT_1D_scan_sweeping_bias_voltage(
 			bureaucrat = bureaucrat,
-			number_of_processes = 3,#max(multiprocessing.cpu_count()-1,1),
+			number_of_processes = number_of_processes,
 			force = force,
 			silent = False,
 			skip_timing_analysis = skip_timing_analysis,
@@ -128,12 +128,20 @@ if __name__=='__main__':
 		dest = 'force',
 		action = 'store_true'
 	)
+	parser.add_argument(
+		'--perform-timing-analysis',
+		help = 'Specify whether to perform a timing analysis too. This takes much longer time to calculate... Default is not to do it.',
+		required = False,
+		dest = 'timing_analysis',
+		action = 'store_true'
+	)
 	args = parser.parse_args()
 	
 	Enrique = RunBureaucrat(Path(args.directory))
 	main(
 		bureaucrat = Enrique,
 		force = args.force,
-		skip_timing_analysis = True,
+		skip_timing_analysis = args.timing_analysis,
+		number_of_processes = 3 if args.timing_analysis else max(multiprocessing.cpu_count()-1,1),
 	)
 
