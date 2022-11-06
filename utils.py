@@ -248,8 +248,8 @@ def normalization_factors_for_amplitude(bureaucrat:RunBureaucrat, approximate_wi
 				else: # right channel
 					data_where_I_expect_amplitude_to_be_maximum = use_this_data.query(f'`Distance (m)`>{distance_right_wndow_begins}').query(f'`Distance (m)`<{distance_right_window_ends}')
 					data_where_I_expect_amplitude_to_be_minimum = use_this_data.query(f'`Distance (m)`<{distance_left_window_ends}')
-				amplitude_offset = data_where_I_expect_amplitude_to_be_minimum['Amplitude (V)'].median()
-				amplitude_divide_by_this_to_normalize = (data_where_I_expect_amplitude_to_be_maximum['Amplitude (V)']-amplitude_offset).median()
+				amplitude_offset = FUNCTION_TO_USE_FOR_AVERAGE(data_where_I_expect_amplitude_to_be_minimum['Amplitude (V)'])
+				amplitude_divide_by_this_to_normalize = FUNCTION_TO_USE_FOR_AVERAGE(data_where_I_expect_amplitude_to_be_maximum['Amplitude (V)']-amplitude_offset)
 				df = pandas.DataFrame({'n_channel':n_channel}, index=[0]).set_index('n_channel')
 				df = pandas.DataFrame(
 					{
@@ -266,16 +266,24 @@ def normalization_factors_for_amplitude(bureaucrat:RunBureaucrat, approximate_wi
 		
 		normalization_data.to_pickle(employee.path_to_directory_of_my_task/'normalization_data.pickle')
 		
-		averaged_in_position_df = normalize_data(data_df, normalization_data).groupby(['n_position','n_channel','n_pulse']).agg([numpy.nanmedian, kMAD])
-		averaged_in_position_df.columns = [f'{col[0]} {col[1]}' for col in averaged_in_position_df.columns]
+		averaged_in_position_df = normalize_data(data_df, normalization_data).groupby(['n_position','n_channel','n_pulse']).agg([FUNCTION_TO_USE_FOR_AVERAGE,FUNCTION_TO_USE_FOR_FLUCTUATIONS])
+		averaged_in_position_df.columns = [' '.join(col) for col in averaged_in_position_df.columns]
+		averaged_in_position_df.rename(
+			columns = {
+				f'Amplitude (V) normalized {FUNCTION_TO_USE_FOR_AVERAGE.__name__}': 'Normalized amplitude',
+				f'Amplitude (V) normalized {FUNCTION_TO_USE_FOR_FLUCTUATIONS.__name__}': 'Normalized amplitude error',
+			},
+			inplace = True,
+		)
+		
 		averaged_in_position_df = averaged_in_position_df.join(distance, on='n_position')
 		averaged_in_position_df = averaged_in_position_df.join(channel_positions, on='n_channel')
 		
 		fig = graficas_px_utils.line(
 			data_frame = averaged_in_position_df.reset_index().sort_values(['channel_position','n_position']),
 			x = 'Distance (m)',
-			y = 'Amplitude (V) normalized nanmedian',
-			error_y = 'Amplitude (V) normalized kMAD',
+			y = 'Normalized amplitude',
+			error_y = 'Normalized amplitude error',
 			error_y_mode = 'bands',
 			color = 'channel_position',
 			line_dash = 'n_pulse',
@@ -313,5 +321,6 @@ if __name__=='__main__':
 		Enrique,
 		approximate_window_size_meters = 250e-6,
 		approximate_laser_size_meters = 11e-6,
+		force = args.force,
 	)
 	
