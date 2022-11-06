@@ -84,8 +84,8 @@ def calculate_inter_pixel_distance_by_linear_interpolation_using_normalized_ampl
 	
 	data_df = data_df.query('n_pulse==1') # Use only the first pulse.
 	
-	averaged_in_position = data_df[['Amplitude (V) normalized']].groupby(['n_position','n_channel','n_pulse']).agg([numpy.nanmedian])
-	averaged_in_position.columns = [f'{col[0]} {col[1]}' for col in averaged_in_position.columns]
+	averaged_in_position = data_df[['Amplitude (V) normalized']].groupby(['n_position','n_channel','n_pulse']).agg(utils.FUNCTION_TO_USE_FOR_AVERAGE)
+	averaged_in_position.rename(columns={'Amplitude (V) normalized': 'Normalized amplitude average'}, inplace=True)
 	averaged_in_position = averaged_in_position.join(distance, on='n_position')
 	averaged_in_position = averaged_in_position.join(channel_positions, on='n_channel')
 	
@@ -97,7 +97,7 @@ def calculate_inter_pixel_distance_by_linear_interpolation_using_normalized_ampl
 	for channel_position in {'left','right'}:
 		df = averaged_in_position.loc[rows].query(f'channel_position=={repr(channel_position)}')
 		distance_vs_charge_linear_interpolation = interpolate.interp1d(
-			x = df['Amplitude (V) normalized nanmedian'],
+			x = df['Normalized amplitude average'],
 			y = df['Distance (m)'],
 		)
 		threshold_distance_for_each_pad[channel_position] = distance_vs_charge_linear_interpolation(threshold_percent/100)
@@ -145,10 +145,12 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 			_ = pandas.DataFrame(_, index=[0]).set_index('n_bootstrap')
 			IPD_data.append(_)
 		IPD_data = pandas.concat(IPD_data)
-		IPD_data = IPD_data.agg([numpy.nanmean, numpy.nanstd])
+		
+		IPD_data = IPD_data.agg([utils.FUNCTION_TO_USE_FOR_AVERAGE, utils.FUNCTION_TO_USE_FOR_FLUCTUATIONS])
+		IPD_data.rename(index={utils.FUNCTION_TO_USE_FOR_AVERAGE.__name__: 'value', utils.FUNCTION_TO_USE_FOR_FLUCTUATIONS.__name__: 'error'}, inplace=True)
 		
 		inter_pixel_distance_final_result = IPD_data['Inter-pixel distance (m)']
-		inter_pixel_distance_final_result = inter_pixel_distance_final_result.rename(index={'nanmean':'value','nanstd':'error'})
+		# ~ inter_pixel_distance_final_result = inter_pixel_distance_final_result.rename(index={utils.FUNCTION_TO_USE_FOR_AVERAGE.__name__:'value',utils.FUNCTION_TO_USE_FOR_FLUCTUATIONS.__name__:'error'})
 		inter_pixel_distance_final_result.to_pickle(employee.path_to_directory_of_my_task/'inter_pixel_distance.pickle')
 		
 		with open(employee.path_to_directory_of_my_task/'threshold_percent.txt', 'w') as ofile:
@@ -157,9 +159,9 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 		# Plots...
 		arrow = go.layout.Annotation(
 			dict(
-				x = IPD_data.loc['nanmean','Right pixel distance (m)'],
+				x = IPD_data.loc['value','Right pixel distance (m)'],
 				y = threshold_percent/100,
-				ax = IPD_data.loc['nanmean','Left pixel distance (m)'],
+				ax = IPD_data.loc['value','Left pixel distance (m)'],
 				ay = threshold_percent/100,
 				xref = "x", 
 				yref = "y",
@@ -173,13 +175,13 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 		)
 		text = go.layout.Annotation(
 			dict(
-				ax = (IPD_data.loc['nanmean', 'Left pixel distance (m)']+IPD_data.loc['nanmean', 'Right pixel distance (m)'])/2,
+				ax = (IPD_data.loc['value', 'Left pixel distance (m)']+IPD_data.loc['value', 'Right pixel distance (m)'])/2,
 				ay = threshold_percent/100,
-				x = (IPD_data.loc['nanmean', 'Left pixel distance (m)']+IPD_data.loc['nanmean', 'Right pixel distance (m)'])/2,
+				x = (IPD_data.loc['value', 'Left pixel distance (m)']+IPD_data.loc['value', 'Right pixel distance (m)'])/2,
 				y = threshold_percent/100,
 				xref = "x", 
 				yref = "y",
-				text = f"Inter-pixel distance: {IPD_data.loc['nanmean','Inter-pixel distance (m)']*1e6:.2f}±{IPD_data.loc['nanstd','Inter-pixel distance (m)']*1e6:.2f} µm<br> ",
+				text = f"Inter-pixel distance: {IPD_data.loc['value','Inter-pixel distance (m)']*1e6:.2f}±{IPD_data.loc['error','Inter-pixel distance (m)']*1e6:.2f} µm<br> ",
 				axref = "x", 
 				ayref='y',
 			)
@@ -197,14 +199,22 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 			employee.path_to_directory_of_my_task/'IPD measurement.pdf',
 		)
 		
-		averaged_in_position = parsed_from_waveforms[['Amplitude (V) normalized']].groupby(['n_position','n_channel','n_pulse']).agg([numpy.nanmedian, utils.kMAD])
-		averaged_in_position.columns = [f'{col[0]} {col[1]}' for col in averaged_in_position.columns]
+		averaged_in_position = parsed_from_waveforms[['Amplitude (V) normalized']].groupby(['n_position','n_channel','n_pulse']).agg([utils.FUNCTION_TO_USE_FOR_AVERAGE, utils.FUNCTION_TO_USE_FOR_FLUCTUATIONS])
+		averaged_in_position.columns = [' '.join(col) for col in averaged_in_position.columns]
+		averaged_in_position.rename(
+			columns = {
+				f'Amplitude (V) normalized {utils.FUNCTION_TO_USE_FOR_AVERAGE.__name__}': 'Normalized amplitude',
+				f'Amplitude (V) normalized {utils.FUNCTION_TO_USE_FOR_FLUCTUATIONS.__name__}': 'Normalized amplitude error',
+			},
+			inplace = True,
+		)
+		
 		averaged_in_position = averaged_in_position.join(distance, on='n_position')
 		averaged_in_position = averaged_in_position.join(channel_positions, on='n_channel')
 		
-		summed = averaged_in_position[['Amplitude (V) normalized nanmedian','Amplitude (V) normalized kMAD']].copy()
-		summed['Normalized amplitude ufloat'] = summed.apply(lambda x: ufloat(x['Amplitude (V) normalized nanmedian'],x['Amplitude (V) normalized kMAD']), axis=1)
-		summed.drop(columns=['Amplitude (V) normalized nanmedian','Amplitude (V) normalized kMAD'], inplace=True)
+		summed = averaged_in_position[['Normalized amplitude','Normalized amplitude error']].copy()
+		summed['Normalized amplitude ufloat'] = summed.apply(lambda x: ufloat(x['Normalized amplitude'],x['Normalized amplitude error']), axis=1)
+		summed.drop(columns=['Normalized amplitude','Normalized amplitude error'], inplace=True)
 		summed = summed.groupby('n_position').sum()
 		summed['Normalized amplitude'] = summed['Normalized amplitude ufloat'].apply(lambda x: x.nominal_value)
 		summed['Normalized amplitude error'] = summed['Normalized amplitude ufloat'].apply(lambda x: x.std_dev)
@@ -212,7 +222,6 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 		summed = summed.join(averaged_in_position.reset_index(['n_channel','n_pulse'], drop=True)['Distance (m)'], on='n_position')
 		summed['channel_position'] = 'left+right'
 		
-		averaged_in_position.rename(columns={'Amplitude (V) normalized nanmedian': 'Normalized amplitude', 'Amplitude (V) normalized kMAD': 'Normalized amplitude error'}, inplace=True)
 		averaged_in_position.reset_index(['n_channel','n_pulse'], inplace=True, drop=True)
 		
 		averaged_in_position = pandas.concat([summed,averaged_in_position])

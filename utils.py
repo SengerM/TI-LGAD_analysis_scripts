@@ -9,8 +9,6 @@ import numpy
 import warnings
 import grafica.plotly_utils.utils as graficas_px_utils
 
-graficas_px_utils.set_my_template_as_default()
-
 def create_a_timestamp():
 	time.sleep(1) # This is to ensure that no two timestamps are the same.
 	return datetime.datetime.now().strftime("%Y%m%d%H%M%S")
@@ -87,6 +85,9 @@ def kMAD(x,nan_policy='omit'):
 	but is much more robust to outliers than the std."""
 	k_MAD_TO_STD = 1.4826 # https://en.wikipedia.org/wiki/Median_absolute_deviation#Relation_to_standard_deviation
 	return k_MAD_TO_STD*median_abs_deviation(x,nan_policy=nan_policy)
+
+FUNCTION_TO_USE_FOR_AVERAGE = numpy.nanmean
+FUNCTION_TO_USE_FOR_FLUCTUATIONS = numpy.nanstd
 
 def interlace(lst):
 	# https://en.wikipedia.org/wiki/Interlacing_(bitmaps)
@@ -287,7 +288,9 @@ def normalization_factors_for_amplitude(bureaucrat:RunBureaucrat, approximate_wi
 
 if __name__=='__main__':
 	import argparse
-
+	
+	graficas_px_utils.set_my_template_as_default()
+	
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--dir',
 		metavar = 'path', 
