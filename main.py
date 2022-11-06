@@ -43,7 +43,7 @@ def run_tasks_on_TCT_1D_scan(bureaucrat:RunBureaucrat, force:bool=False, silent:
 		number_of_bootstrapped_replicas = 11,
 		force = force,
 	)
-	if not skip_timing_analysis:
+	if skip_timing_analysis == False:
 		if not silent:
 			print(f'Running `time_resolution.jitter_vs_distance_in_TCT_1D_scan` on {bureaucrat.run_name}...')
 		time_resolution.jitter_vs_distance_in_TCT_1D_scan(
@@ -141,7 +141,7 @@ if __name__=='__main__':
 	main(
 		bureaucrat = Enrique,
 		force = args.force,
-		skip_timing_analysis = args.timing_analysis,
+		skip_timing_analysis = not args.timing_analysis,
 		number_of_processes = 3 if args.timing_analysis else max(multiprocessing.cpu_count()-1,1),
 	)
 
