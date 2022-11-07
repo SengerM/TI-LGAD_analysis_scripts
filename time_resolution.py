@@ -11,8 +11,6 @@ import utils
 import plotly.express as px
 import summarize_measured_data
 
-set_my_template_as_default()
-
 def gaussian(x, mu, sigma, amplitude=1):
 	return amplitude/sigma/(2*numpy.pi)**.5*numpy.exp(-((x-mu)/sigma)**2/2)
 
@@ -31,6 +29,7 @@ def plot_statistics_vs_distance(df, column_name):
 		error_y_mode = 'bands',
 		color = 'n_channel',
 		line_dash = 'n_pulse',
+		labels = utils.LABELS_FOR_PLOTS,
 	)
 
 def calculate_Δt(data_df:pandas.DataFrame)->pandas.DataFrame:
@@ -171,6 +170,7 @@ def jitter_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, number_of_bootst
 			error_y_mode = 'bands',
 			color = 'n_channel',
 			title = f'Jitter vs position<br><sup>Run: {Nicanor.run_name}</sup>',
+			labels = utils.LABELS_FOR_PLOTS,
 		)
 		fig.write_html(
 			str(Nicanors_employee.path_to_directory_of_my_task/'jitter_vs_distance.html'),
@@ -207,6 +207,7 @@ def time_resolution_vs_distance_in_TCT_1D_scan(bureaucrat:RunBureaucrat, cfd_thr
 			error_y_mode = 'bands',
 			color = 'n_channel',
 			title = f'Time resolution vs position<br><sup>Run: {Rick.run_name}</sup>',
+			labels = utils.LABELS_FOR_PLOTS,
 		)
 		fig.write_html(
 			str(Ricks_employee.path_to_directory_of_my_task/'time_resolution_vs_distance.html'),
@@ -262,6 +263,7 @@ def pixel_time_resolution(bureaucrat:RunBureaucrat, approximate_window_size_mete
 			error_y_mode = 'bands',
 			color = 'channel_position',
 			title = f'TCT time resolution<br><sup>Run: {bureaucrat.run_name}</sup>',
+			labels = utils.LABELS_FOR_PLOTS,
 		)
 		fig.add_hrect(
 			y0 = time_resolution_final_result['Time resolution (s)']-time_resolution_final_result['Time resolution (s) error'],
@@ -307,6 +309,7 @@ def time_resolution_vs_bias_voltage(bureaucrat:RunBureaucrat):
 			error_y = 'Time resolution (s) error',
 			markers = True,
 			title = f'Time resolution vs bias voltage in TCT<br><sup>Run: {bureaucrat.run_name}</sup>',
+			labels = utils.LABELS_FOR_PLOTS,
 		)
 		fig.update_xaxes(autorange="reversed")
 		fig.write_html(
@@ -316,7 +319,9 @@ def time_resolution_vs_bias_voltage(bureaucrat:RunBureaucrat):
 	
 if __name__ == '__main__':
 	import argparse
-
+	
+	set_my_template_as_default()
+	
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--dir',
 		metavar = 'path', 

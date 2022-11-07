@@ -9,6 +9,12 @@ import numpy
 import warnings
 import grafica.plotly_utils.utils as graficas_px_utils
 
+LABELS_FOR_PLOTS = {
+	'channel_position': 'Channel',
+	'Amplitude (V) normalized nanmedian': 'Normalized amplitude',
+	'Inter-pixel distance (m) value': 'Inter-pixel distance (m)',
+}
+
 def create_a_timestamp():
 	time.sleep(1) # This is to ensure that no two timestamps are the same.
 	return datetime.datetime.now().strftime("%Y%m%d%H%M%S")

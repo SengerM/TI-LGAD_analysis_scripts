@@ -193,6 +193,7 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 			y = 'Amplitude (V) normalized',
 			color = 'channel_position',
 			title = f'Inter-pixel distance measurement<br><sup>Run: {bureaucrat.run_name}</sup>',
+			labels = utils.LABELS_FOR_PLOTS,
 		)
 		fig.update_layout(annotations=[arrow,text])
 		fig.write_image( # Save it as PDF because it is too heavy as HTML.
@@ -234,10 +235,7 @@ def inter_pixel_distance(bureaucrat:RunBureaucrat, number_of_bootstrapped_replic
 			error_y_mode = 'band',
 			color = 'channel_position',
 			title = f'Inter-pixel distance measurement<br><sup>Run: {bureaucrat.run_name}</sup>',
-			labels = {
-				'Amplitude (V) normalized nanmedian': 'Normalized amplitude',
-				'channel_position': 'Channel',
-			}
+			labels = utils.LABELS_FOR_PLOTS,
 		)
 		fig.update_layout(annotations=[arrow,text])
 		fig.write_html(
@@ -284,9 +282,7 @@ def inter_pixel_distance_vs_bias_voltage(bureaucrat:RunBureaucrat):
 			error_y = 'Inter-pixel distance (m) error',
 			markers = True,
 			title = f'Time resolution vs bias voltage in TCT<br><sup>Run: {bureaucrat.run_name}</sup>',
-			labels = {
-				'Inter-pixel distance (m) value': 'Inter-pixel distance (m)'
-			}
+			labels = utils.LABELS_FOR_PLOTS,
 		)
 		fig.update_xaxes(autorange="reversed")
 		fig.write_html(

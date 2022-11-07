@@ -211,6 +211,7 @@ def distance_calibration_TCT_1D_scan(bureaucrat:RunBureaucrat, window_size_meter
 			error_y_mode = 'bands',
 			color = 'channel_position',
 			title = f'Normalized amplitude after distance calibration<br><sup>Run: {Néstor.run_name}</sup>',
+			labels = utils.LABELS_FOR_PLOTS,
 		)
 		fig.write_html(
 			Cristina.path_to_directory_of_my_task/'plot with calibrated distance.html',
@@ -225,6 +226,7 @@ def distance_calibration_TCT_1D_scan(bureaucrat:RunBureaucrat, window_size_meter
 			error_y_mode = 'bands',
 			color = 'channel_position',
 			title = f'ERF fit for distance calibration<br><sup>Run: {Néstor.run_name}</sup>',
+			labels = utils.LABELS_FOR_PLOTS,
 		)
 		for channel_position in set(averaged_in_position_df['channel_position']):
 			if channel_position == 'left':
